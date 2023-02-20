@@ -1,0 +1,564 @@
+---
+title: "candice applied stat"
+output: html_document
+date: "2023-02-20"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r working directory and data, echo=FALSE, include=FALSE}
+lapply(c("dplyr","chron","ggplot2","tidyr","questionr","survival","forcats","tidyselect",
+         "data.table","table1","lubridate", "ggpubr","viridis","finalfit","survminer",
+         "ggpubr", "ggthemes", "gridExtra", "rstatix","stringr",
+         "wesanderson","kableExtra", "naniar","boot","scales","ggsci", "stringr",
+         "Hmisc","DescTools","swimplot", 'stats'), 
+       library, character.only=TRUE)
+
+Sys.setlocale("LC_TIME", "English")
+setwd("C:/Users/candi/Desktop/ETUDES/EPFL1A/semestre 2/applied statistics/applied_stat_359523")
+df <- read.csv("1_snow_particles.csv")
+```
+
+# Exploratory data analysis
+I start by doing a simple exploratory data analysis by plotting the points. 
+```{r exploratory, echo=FALSE}
+plot(df$startpoint,df$retained..../100)
+df$binsize <- df$endpoint - df$startpoint
+```
+
+```{r densities, echo=FALSE}
+lognormal <- function(x, mu1, sigma1){
+  if (x!=0){
+    return((1/x)*dnorm(log(x), mean=mu1, sd=sigma1))}
+  else{
+    return(0)
+  }
+}
+
+
+bilognorm <- function(x, mu1, mu2, sigma1, sigma2, p) {
+    return(p*lognormal(x,mu1,sigma1)+(1-p)*lognormal(x,mu2,sigma2))
+}
+```
+
+# Fit a mixture of log normal distributions
+## EM algorithm
+
+```{r bi log normal EM algo, echo=FALSE}
+#Initialisation 
+p_init <- 0.5
+mu1_init <- 0.25
+mu2_init <- 0.75
+sigma1_init <- 0.25
+sigma2_init <- 0.5
+
+estimate <- function(p_init, mu1_init, mu2_init, sigma1_init, sigma2_init){
+
+X <- df$retained....
+Y <- numeric(length = length(X))
+
+
+for (i in 1:length(X)){
+  if (X[i]!=0){
+    Y[i] <- log(X[i])}}
+
+N = length(X)
+
+#criterion : epsilon 
+eps = 0.001
+k=0
+err = 20000
+old_likelihood <- 0 
+new_likelihood <- 0 
+p_new <- numeric(length=N)
+
+while (err>eps){
+  
+#log likelihood computation
+for (i in 1:length(X)){
+  old_likelihood <- old_likelihood + bilognorm(X[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)} 
+old_likelihood <- log(old_likelihood)
+
+#new parameters
+f_theta <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init) + (1-p_init)*dnorm(Y, mean=mu2_init, sd = sigma2_init)
+
+gamma <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init)/f_theta
+
+s <- sum(gamma)
+p_new <- s/N
+mu_1_new <- sum(Y*gamma)/s
+mu_2_new <- sum(Y*(1-gamma))/(N-s)
+s1 <- sum(gamma*(Y - mu1_init)**2)
+s2 <- sum((1-gamma)*(Y - mu2_init)**2)
+sigma1_new <- sqrt(s1/(N-s))
+sigma2_new <- sqrt(s2/(N-s))
+
+#new log likelihood computation
+for (i in 1:length(X)){
+  new_likelihood <- new_likelihood + bilognorm(X[i], mu_1_new, mu_2_new, sigma1_new, sigma2_new, p_new)}
+new_likelihood <- log(new_likelihood)
+
+#k represents the number of iterations before convergence
+k = k+1
+
+#err is the error 
+err = abs(new_likelihood- old_likelihood)
+
+#new parameters
+mu1_init <- mu_1_new
+mu2_init <- mu_2_new
+sigma1_init <- sigma1_new
+sigma2_init <- sigma2_new
+p_init <- p_new
+
+#we put the likelihood at 0 to be able to compute them again 
+old_likelihood <- 0 
+new_likelihood <- 0 
+
+}
+
+return(c(mu1_init, mu2_init, sigma1_init, sigma2_init, p_init))}
+
+param <- estimate(p_init = p_init, mu1_init = mu1_init, mu2_init =mu2_init, sigma1_init = sigma1_init, sigma2_init = sigma2_init )
+
+print(c('The obtained parameters are', param))
+```
+
+I plot below my data points and the the density I obtain with the estimated parameters.
+
+```{r bi log normal fit, echo=FALSE}
+mu1_init <- param[1]
+mu2_init <- param[2]
+sigma1_init <- param[3]
+sigma2_init <- param[4]
+p_init <- param[5]
+
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init) }
+hist(sample)
+lines(df$startpoint, df$retained....)
+#lines(df$retained...., bilognorm(df$retained...., mu1_init, mu2_init, sigma1_init, sigma2_init, p_init))
+```
+
+## Optimization
+We want in this section to optimize our parameters estimation. 
+```{r optimization, echo=FALSE}
+#values we obtained and that we want to optimize 
+mu1 <- mu1_init
+mu2 <- mu2_init
+sigma1 <- sigma1_init
+sigma2 <- sigma2_init
+p <- p_init
+
+#we define eps from which we will make our values change to see which model is better fitting our data
+eps = 0.1
+
+par(mfrow = c(3,2))
+
+#graph1
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init) }
+hist(sample, main='graph1')
+lines(df$startpoint, df$retained....)
+
+#graph2
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init+eps, mu2_init+eps, sigma1_init+eps, sigma2_init+eps, p_init+2*eps) }
+hist(sample, main='graph2')
+lines(df$startpoint, df$retained....)
+
+#graph3
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init-eps, mu2_init-eps, sigma1_init-eps, sigma2_init-eps, p_init+2*eps) }
+hist(sample, main='graph3')
+lines(df$startpoint, df$retained....)
+
+#graph4
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init-eps, mu2_init+eps, sigma1_init+eps, sigma2_init+eps, p_init+2*eps) }
+hist(sample, main='graph4')
+lines(df$startpoint, df$retained....)
+
+#graph5
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init-eps, mu2_init+2*eps, sigma1_init, sigma2_init, p_init+2*eps) }
+hist(sample, main='graph5')
+lines(df$startpoint, df$retained....)
+
+#graph6
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init-eps, mu2_init+2*eps, sigma1_init + eps, sigma2_init, p_init+2*eps) }
+hist(sample, main = 'graph6')
+lines(df$startpoint, df$retained....)
+```
+
+## Bayesian approach 
+```{r MCMC, echo=FALSE}
+likelihood_mixed <- function(xn, mu1, mu2, sigma1, sigma2, p){
+  old_likelihood <- 0
+  for (i in 1:length(xn)){
+    old_likelihood<- old_likelihood + bilognorm(xn[i], mu1, mu2, sigma1, sigma2, p)
+  return(old_likelihood)}}
+
+
+n_iter_max <- 5000
+burn_in <- 1000 
+thin <- 2
+
+#initialize the parameters 
+mu1 <- mu1_init
+mu2 <- mu2_init
+sigma1 <- sigma1_init
+sigma2 <- sigma2_init
+p <- p_init
+params <- c(mu1, mu2, sigma1, sigma2, p)
+
+chain <- matrix(0, nrow = n_iter_max, ncol = length(params))
+chain[1,] <- params
+
+prop_sd <- c(0.01, 0.01, 0.01, 0.01, 0.01)
+
+for (i in 2:n_iter_max) {
+  # Generate proposal
+  prop <- rnorm(length(params), mean = chain[i-1,], sd = prop_sd)
+  prop <- abs(prop)
+  
+  # Compute acceptance probability
+  log_ratio <- likelihood_mixed(X, prop[1], prop[2], prop[3], prop[4], prop[5]) - likelihood_mixed(X, chain[i-1,][1], chain[i-1,][2], chain[i-1,][3], chain[i-1,][4], chain[i-1,][5])
+  accept_prob <- exp(log_ratio)
+  
+  # Decide whether to accept or reject proposal
+  if (runif(1) < accept_prob) {
+    chain[i,] <- prop
+  } else {
+    chain[i,] <- chain[i-1,]
+  }
+}
+
+posterior <- chain[-(1:burn_in),]
+posterior <- posterior[seq(1, nrow(posterior), thin),]
+
+```
+
+Check convergence of the chain... bof bof 
+
+```{r convergence, echo=FALSE}
+for (i in 1:5) {
+  plot(posterior[,i], type="l")
+}
+```
+
+Check if it improved our model 
+
+```{r improvement, echo=FALSE}
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], prop[1], prop[2], prop[3], prop[4], prop[5]) }
+hist(sample)
+lines(df$startpoint, df$retained....)
+``` 
+
+# Parametric bootstrap
+We use again what we did during the first semester
+```{r parametric bootstrap, echo=FALSE}
+abs_diff <- function(xn, mu1, mu2, sigma1, sigma2,p){
+  #Compute EDF
+  F_N <- ecdf(xn)
+  #Compute absolute difference
+  n=length(xn)
+  grid<-runif(n, 0, 10)
+  for(i in 1:n){
+    sample <- bilognorm(grid[i],mu1, mu2, sigma1, sigma2, p)
+  }
+  difabs <- abs(F_N(grid)-sample)
+  #Store result
+  return(max(difabs))
+}
+
+sample_bilog <- function(n, mu1_init, mu2_init, sigma1_init, sigma2_init, p_init){
+  for (i in 1:52){
+    sample[i] <- p_init * rlnorm(n, meanlog = mu1_init, sdlog = sigma1_init) + (1-p_init) * rlnorm(n, meanlog = mu2_init, sdlog = sigma2_init)}
+  return(sample)
+}
+
+Param_bootstrap <- function(xn, Bboot, mu1_init, mu2_init, sigma1_init, sigma2_init, p_init){
+  #Compute parameters of sample xn
+  n = length(xn)
+  T0 <- abs_diff(xn, mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)
+  
+  #Bootstrap procedure
+  Tb <- rep(NA,Bboot)
+  for (b in 1:Bboot){
+    #Generate sample from approximate candidate law Poi(lambda)
+    xb_star <- sample_bilog(n, mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)
+    #Estimate parameters of the sample
+    estim <- estimate(xb_star) #do the function estimate
+    mu1_init <- estim[1]
+    mu2_init <- estim[2]
+    sigma1_init <- estim[3]
+    sigma2_init <- estim[4]
+    p_init <- estim[5]
+
+    #Difference
+    Tb[b]<-abs_diff(xb_star, mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)
+    
+  }
+  return(1/(Bboot+1)*(1 + sum(Tb[(Tb>T0)])))
+}
+
+Param_bootstrap(X, Bboot = 50, mu1_init = mu1_init, mu2_init = mu2_init, sigma1_init = sigma1_init, sigma2_init = sigma2_init, p_init = p_init)
+
+```
+
+# Comments 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Autre 
+```{r parametric bootstrap, echo=FALSE}
+MCMC = function(n, start, ){
+  
+  x = rep(0,n)
+  x[1] = start 
+  U <- rnorm(n, mean=y, sd=0.6)
+  for(i in 2:n){
+    x_now = x[i-1]
+    m = mean(x)
+    A = f(U[i],m)*phi(x_now, y)/(f(x_now, m)*phi(U[i], y))
+    if(runif(1)<A){
+      x[i] = U[i]       # accept move with probability min(1,A) = alpha
+    } else {
+      x[i] = x_now        # otherwise stay where we are
+    }
+  }
+  return(x)
+}
+```
+
+```{r parametric bootstrap other, echo=FALSE}
+MLE_expo <- function(xn){ #Compute MLE of a sample x1,...xn ~ exp(lambda) (iid)
+  return(length(xn)/sum(xn))
+}
+
+abs_diff_exp <- function(xn, lambda){
+  #Compute EDF
+  F_N <- ecdf(xn)
+  #Compute absolute difference
+  grid<-c(1:100)
+  difabs <- abs(F_N(grid)-pexp(grid,lambda))
+  #Store result
+  return(max(difabs))
+}
+
+Param_bootstrap_expo <- function(xn, Bboot = 10000){
+  #Compute MLE of sample xn
+  n = length(xn)
+  lambda <- MLE_expo(xn)
+  T0 <- abs_diff_exp(xn,lambda)
+  
+  #Bootstrap procedure
+  Tb <- rep(NA,Bboot)
+  for (b in 1:Bboot){
+    #Generate sample from approximate candidate law Poi(lambda)
+    xb_star <- rexp(n,lambda)
+    #Estimate MLE of the sample
+    lambda_b_star <- MLE_expo(xb_star)
+    Tb[b]<-abs_diff_exp(xb_star,lambda_b_star)
+    
+    # plot(F_Nb)
+    # points(grid,ppois(grid,lambda_b_star), type="l", color="red")
+  }
+  return(1/(Bboot+1)*(1 + sum(Tb[(Tb>T0)])))
+}
+
+```
+
+
+```{r bi log normal EM algo test, echo=FALSE, include = FALSE}
+bilognorm <- function(x, mu1, mu2, sigma1, sigma2, p) {
+  p * dnorm(x, mean = mu1, sd = sigma1) + (1 - p) * dnorm(x, mean = mu2, sd = sigma2)
+}
+
+#initialize
+mu1 <- mean(df$retained....)
+mu2 <- quantile(df$retained...., 0.9)
+sigma1 <- sd(df$retained....)
+sigma2 <- sd(df$retained....)
+p <- 0.7
+tol <- 1e-6
+maxiter <- 1000
+
+#log likelihood
+ll <- -Inf
+
+#weights
+w1 <- rep(0, length(df$retained....))
+w2 <- rep(0, length(df$retained....))
+
+
+for (i in 1:maxiter){
+  # E-step
+  for (j in 1:length(df$retained....)){
+    w1[j] <- bilognorm(df$retained....[j], mu1, mu2, sigma1, sigma2, p) / 
+      (bilognorm(df$retained....[j], mu1, mu2, sigma1, sigma2, p) + bilognorm(df$retained....[j], mu2, mu1, sigma2, sigma1, 1-p))
+    w2[j] <- 1 - w1[j]
+  }
+  # M-step
+  mu1 <- sum(w1 * df$retained....) / sum(w1)
+  mu2 <- sum(w2 * df$retained....) / sum(w2)
+  sigma1 <- sqrt(sum(w1 * (df$retained.... - mu1)^2) / sum(w1))
+  sigma2 <- sqrt(sum(w2 * (df$retained.... - mu2)^2) / sum(w2))
+  p <- mean(w1)
+  
+  llnew <- sum(log(bilognorm(df$retained...., mu1, mu2, sigma1, sigma2, p)))
+  if (abs(llnew - ll) < tol) break
+  ll <- llnew
+}
+
+#final estimates
+print(c(mu1_init, mu2_init, sigma1_init, sigma2_init, p_init))
+
+```
+
+```{r parametric bootstrap celine, echo=FALSE}
+MLE_expo <- function(xn){ #Compute MLE of a sample x1,...xn ~ exp(lambda) (iid)
+  return(length(xn)/sum(xn))
+}
+
+abs_diff_exp <- function(xn, lambda){
+  #Compute EDF
+  F_N <- ecdf(xn)
+  #Compute absolute difference
+  grid<-c(1:100)
+  difabs <- abs(F_N(grid)-pexp(grid,lambda))
+  #Store result
+  return(max(difabs))
+}
+
+Param_bootstrap_expo <- function(xn, Bboot = 10000){
+  #Compute MLE of sample xn
+  n = length(xn)
+  lambda <- MLE_expo(xn)
+  T0 <- abs_diff_exp(xn,lambda)
+  
+  #Bootstrap procedure
+  Tb <- rep(NA,Bboot)
+  for (b in 1:Bboot){
+    #Generate sample from approximate candidate law Poi(lambda)
+    xb_star <- rexp(n,lambda)
+    #Estimate MLE of the sample
+    lambda_b_star <- MLE_expo(xb_star)
+    Tb[b]<-abs_diff_exp(xb_star,lambda_b_star)
+    
+    # plot(F_Nb)
+    # points(grid,ppois(grid,lambda_b_star), type="l", color="red")
+  }
+  return(1/(Bboot+1)*(1 + sum(Tb[(Tb>T0)])))
+}
+
+
+```
+
+
+```{r test, echo=FALSE}
+#criterion : epsilon 
+tau_init <- 0.5
+mu1_init <- 0.25
+mu2_init <- 0.75
+sigma1_init <- 0.25
+sigma2_init <- 0.5
+
+X <- df$retained..../100
+Y <- log(X)
+N = length(X)
+eps = 10
+k=0
+err = 20000
+old_likelihood <- 0 
+new_likelihood <- 0 
+p_ <- numeric(length=N)
+
+while(err>eps){
+#log likelihood computation
+for (i in 1:length(X)){
+  old_likelihood <- old_likelihood + bilognorm(X[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p = tau_init)}
+old_likelihood <- log(old_likelihood)
+
+#new parameters
+f_theta_ <- bilognorm(X, mu1_init, mu2_init, sigma1_init, sigma2_init, p=tau_init)
+p_ <- lognormal(X, mu2_init, sigma2_init) * tau_init / f_theta_
+s_ <- sum(p_)
+s4_ <- sum(Y * (1-p_))
+s5_ <- sum(Y * p_)
+tau_new_ <- s_/N
+mu1_new_ <- s4_ / (N-s_)
+mu2_new_ <- s5_ / s_
+s6_ <- sum((1-p_) * (Y - mu1_init)^2)
+s7_ <- sum(p_ * (Y - mu2_init)^2)
+sigma1_new_ = sqrt(s6_/(N-s_))
+sigma2_new_ = sqrt(s7_/s_)
+#new log likelihood computation
+for (i in 1:length(X)){
+  new_likelihood <- new_likelihood + bilognorm(X[i], mu1_new_, mu2_new_, sigma1_new_, sigma2_new_, tau_new_)}
+new_likelihood <- log(new_likelihood)
+#k represents the number of iterations before convergence
+k = k+1
+#err is the error 
+err = abs(new_likelihood- old_likelihood)
+#new parameters
+mu1_init <- mu1_new_
+mu2_init <- mu2_new_
+sigma1_init <- sigma1_new_
+sigma2_init <- sigma2_new_
+tau_init <- tau_new_
+#we put the likelihood at 0 to be able to compute them again 
+old_likelihood <- 0 
+new_likelihood <- 0 
+}
+print(c(mu1_init, mu2_init, sigma1_init, sigma2_init, tau_init, k))
+```
