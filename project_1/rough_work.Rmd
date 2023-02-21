@@ -14,7 +14,7 @@ lapply(c("dplyr","chron","ggplot2","tidyr","questionr","survival","forcats","tid
          "data.table","table1","lubridate", "ggpubr","viridis","finalfit","survminer",
          "ggpubr", "ggthemes", "gridExtra", "rstatix","stringr",
          "wesanderson","kableExtra", "naniar","boot","scales","ggsci", "stringr",
-         "Hmisc","DescTools","swimplot", 'stats'), 
+         "Hmisc","DescTools","swimplot", 'stats', 'EnvStats'), 
        library, character.only=TRUE)
 
 Sys.setlocale("LC_TIME", "English")
@@ -24,8 +24,15 @@ df <- read.csv("1_snow_particles.csv")
 # Exploratory data analysis
 I start by doing a simple exploratory data analysis by plotting the points. 
 ```{r exploratory, echo=FALSE}
-plot(df$startpoint,df$retained..../100)
+plot(df$X,df$retained..../100)
 df$binsize <- df$endpoint - df$startpoint
+
+plot(log(df$retained..../100))
+
+library('EnvStats')
+hist(rlnormMix(52, meanlog1 = log(10), sdlog1 = 0.5, meanlog2 = log(35), sdlog2 = 1, p.mix = 0.7), freq = F )
+lines(df$X,df$retained..../100)
+
 ```
 
 ```{r densities, echo=FALSE}

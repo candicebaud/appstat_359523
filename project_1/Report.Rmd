@@ -6,25 +6,345 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE)
 ```
 
-## R Markdown
+```{r working directory and data, echo=FALSE, include=FALSE}
+lapply(c("dplyr","chron","ggplot2","tidyr","questionr","survival","forcats","tidyselect",
+         "data.table","table1","lubridate", "ggpubr","viridis","finalfit","survminer",
+         "ggpubr", "ggthemes", "gridExtra", "rstatix","stringr",
+         "wesanderson","kableExtra", "naniar","boot","scales","ggsci", "stringr",
+         "Hmisc","DescTools","swimplot", 'stats', 'EnvStats'), 
+       library, character.only=TRUE)
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+Sys.setlocale("LC_TIME", "English")
+df <- read.csv("1_snow_particles.csv")
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+## 1. Introduction
+trouver une intro
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+In this report, we work with a data set TO DO 
+
+
+## 2. Data Characteristics
+The outcome of interest is the variable *retained* which is the fraction of particles belonging to each diameter bin. The other variables we have are 
+
+*The startpoint of the bin
+*The endpoint of the bin
+*The number of particles detected 
+
+Our goal is to simulate snow-flake diameters that are compatible with the data in order to study aeolian transport of snow. 
+
+I represent below the percentage of particles in each bin.
+```{r exploratory, echo=FALSE}
+plot(df$X,df$retained..../100, main ='Percentage of particles in each bin', xlab = 'bin', ylab ='Frequency(%)')
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+## 3. Model fitting
+### With an EM algorithm 
+```{r densities, echo=FALSE}
+lognormal <- function(x, mu1, sigma1){
+  if (x!=0){
+    return((1/x)*dnorm(log(x), mean=mu1, sd=sigma1))}
+  else{
+    return(0)
+  }
+}
+
+
+bilognorm <- function(x, mu1, mu2, sigma1, sigma2, p) {
+    return(p*lognormal(x,mu1,sigma1)+(1-p)*lognormal(x,mu2,sigma2))
+}
+```
+
+```{r bi log normal EM algo, echo=FALSE}
+#Initialisation 
+p_init <- 0.5
+mu1_init <- 0.25
+mu2_init <- 0.75
+sigma1_init <- 0.25
+sigma2_init <- 0.5
+X <- df$retained....
+
+estimate <- function(X, p_init, mu1_init, mu2_init, sigma1_init, sigma2_init){
+
+
+Y <- numeric(length = length(X))
+
+
+for (i in 1:length(X)){
+  if (X[i]!=0){
+    Y[i] <- log(X[i])}}
+
+N = length(X)
+
+#criterion : epsilon 
+eps = 0.001
+k=0
+err = 20000
+old_likelihood <- 0 
+new_likelihood <- 0 
+p_new <- numeric(length=N)
+
+while (err>eps){
+  
+#log likelihood computation
+for (i in 1:length(X)){
+  old_likelihood <- old_likelihood + bilognorm(X[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)} 
+old_likelihood <- log(old_likelihood)
+
+#new parameters
+f_theta <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init) + (1-p_init)*dnorm(Y, mean=mu2_init, sd = sigma2_init)
+
+gamma <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init)/f_theta
+
+s <- sum(gamma)
+p_new <- s/N
+mu_1_new <- sum(Y*gamma)/s
+mu_2_new <- sum(Y*(1-gamma))/(N-s)
+s1 <- sum(gamma*(Y - mu1_init)**2)
+s2 <- sum((1-gamma)*(Y - mu2_init)**2)
+sigma1_new <- sqrt(s1/(N-s))
+sigma2_new <- sqrt(s2/(N-s))
+
+#new log likelihood computation
+for (i in 1:length(X)){
+  new_likelihood <- new_likelihood + bilognorm(X[i], mu_1_new, mu_2_new, sigma1_new, sigma2_new, p_new)}
+new_likelihood <- log(new_likelihood)
+
+#k represents the number of iterations before convergence
+k = k+1
+
+#err is the error 
+err = abs(new_likelihood- old_likelihood)
+
+#new parameters
+mu1_init <- mu_1_new
+mu2_init <- mu_2_new
+sigma1_init <- sigma1_new
+sigma2_init <- sigma2_new
+p_init <- p_new
+
+#we put the likelihood at 0 to be able to compute them again 
+old_likelihood <- 0 
+new_likelihood <- 0 
+
+}
+
+return(c(mu1_init, mu2_init, sigma1_init, sigma2_init, p_init))}
+
+param <- estimate(X = X, p_init = p_init, mu1_init = mu1_init, mu2_init =mu2_init, sigma1_init = sigma1_init, sigma2_init = sigma2_init )
+
+print(c('The obtained parameters are', param))
+```
+
+
+```{r bi log normal fit, echo=FALSE}
+mu1_init <- param[1]
+mu2_init <- param[2]
+sigma1_init <- param[3]
+sigma2_init <- param[4]
+p_init <- param[5]
+
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init) }
+hist(sample)
+lines(df$startpoint, df$retained....)
+#lines(df$retained...., bilognorm(df$retained...., mu1_init, mu2_init, sigma1_init, sigma2_init, p_init))
+```
+
+### Local optimization
+```{r optimization, echo=FALSE}
+#values we obtained and that we want to optimize 
+mu1 <- mu1_init
+mu2 <- mu2_init
+sigma1 <- sigma1_init
+sigma2 <- sigma2_init
+p <- p_init
+
+#we define eps from which we will make our values change to see which model is better fitting our data
+eps = 0.1
+
+par(mfrow = c(3,2))
+
+#graph1
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init) }
+hist(sample, main='graph1')
+lines(df$startpoint, df$retained....)
+
+#graph2
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init+eps, mu2_init+eps, sigma1_init+eps, sigma2_init+eps, p_init+2*eps) }
+hist(sample, main='graph2')
+lines(df$startpoint, df$retained....)
+
+#graph3
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init-eps, mu2_init-eps, sigma1_init-eps, sigma2_init-eps, p_init+2*eps) }
+hist(sample, main='graph3')
+lines(df$startpoint, df$retained....)
+
+#graph4
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init-eps, mu2_init+eps, sigma1_init+eps, sigma2_init+eps, p_init+2*eps) }
+hist(sample, main='graph4')
+lines(df$startpoint, df$retained....)
+
+#graph5
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init-eps, mu2_init+2*eps, sigma1_init, sigma2_init, p_init+2*eps) }
+hist(sample, main='graph5')
+lines(df$startpoint, df$retained....)
+
+#graph6
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init-eps, mu2_init+2*eps, sigma1_init + eps, sigma2_init, p_init+2*eps) }
+hist(sample, main = 'graph6')
+lines(df$startpoint, df$retained....)
+```
+
+### Bayesian approach
+```{r MCMC, echo=FALSE}
+likelihood_mixed <- function(xn, mu1, mu2, sigma1, sigma2, p){
+  old_likelihood <- 0
+  for (i in 1:length(xn)){
+    old_likelihood<- old_likelihood + bilognorm(xn[i], mu1, mu2, sigma1, sigma2, p)
+  return(old_likelihood)}}
+
+
+n_iter_max <- 11000
+burn_in <- 1000 
+thin <- 2
+
+#initialize the parameters 
+mu1 <- mu1_init
+mu2 <- mu2_init
+sigma1 <- sigma1_init
+sigma2 <- sigma2_init
+p <- p_init
+params <- c(mu1, mu2, sigma1, sigma2, p)
+
+chain <- matrix(0, nrow = n_iter_max, ncol = length(params))
+chain[1,] <- params
+
+prop_sd <- c(0.01, 0.01, 0.01, 0.01, 0.01)
+
+for (i in 2:n_iter_max) {
+  # Generate proposal
+  prop <- rnorm(length(params), mean = chain[i-1,], sd = prop_sd)
+  prop <- abs(prop)
+  
+  # Compute acceptance probability
+  #p_prop <- sum(dnorm(X, mean = c(prop[1], prop[2], prop[3], prop[4], prop[5]), sd=prop_sd))
+  p_prop = 1
+  p_curr = 1 # we have a gaussian proposal that is symmetric so the ratio of p_prop/p_curr is 1 (I set both at 1 to have the ratio equal to 1) 
+  #p_curr <- sum(dnorm(X, mean = chain[i-1,], sd = prop_sd))
+  accept_prob <- likelihood_mixed(X, prop[1], prop[2], prop[3], prop[4], prop[5])*p_prop/(likelihood_mixed(X, chain[i-1,][1], chain[i-1,][2], chain[i-1,][3], chain[i-1,][4], chain[i-1,][5])*p_curr)
+  
+  # Decide whether to accept or reject proposal
+  if (runif(1) < accept_prob) {
+    chain[i,] <- prop
+  } else {
+    chain[i,] <- chain[i-1,]
+  }
+}
+
+posterior <- chain[-(1:burn_in),]
+posterior <- posterior[seq(1, nrow(posterior), thin),]
+
+```
+
+
+
+Check if it improved our model 
+
+```{r improvement, echo=FALSE}
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], prop[1], prop[2], prop[3], prop[4], prop[5]) }
+hist(sample)
+lines(df$startpoint, df$retained....)
+``` 
+
+
+## 4. Stability/sensitivity Inspection
+### Convergence of the MCMC 
+```{r convergence, echo=FALSE}
+par(mfrow = c(3,2))
+for (i in 1:5) {
+  plot(posterior[,i], type="l", main ='', xlab = 'iteration', ylab ='')
+}
+```
+
+
+### Plausibility of the mixture of lognormal
+```{r parametric bootstrap, echo=FALSE}
+library("EnvStats")
+abs_diff <- function(xn, mu1, mu2, sigma1, sigma2,p){
+  #Compute EDF
+  F_N <- ecdf(xn)
+  #Compute absolute difference
+  n=length(xn)
+  grid<-runif(n, 0, 10)
+  for(i in 1:n){
+    sample <- bilognorm(grid[i],mu1, mu2, sigma1, sigma2, p)
+  }
+  difabs <- abs(F_N(grid)-sample)
+  #Store result
+  return(max(difabs))
+}
+
+
+Param_bootstrap <- function(xn, Bboot, mu1_init, mu2_init, sigma1_init, sigma2_init, p_init){
+  #Compute parameters of sample xn
+  n = length(xn)
+  T0 <- abs_diff(xn, mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)
+  
+  #Bootstrap procedure
+  Tb <- rep(NA,Bboot)
+  for (b in 1:Bboot){
+    #Generate sample from approximate candidate law 
+    xb_star <- rlnormMix(n, mu1_init,sigma1_init, mu2_init, sigma2_init, p_init)
+    #Estimate parameters of the sample
+    estim <- estimate(xb_star, p_init, mu1_init,sigma1_init, mu2_init, sigma2_init) #change with MLE estimates ? 
+    mu1_estim <- estim[1]
+    mu2_estim <- estim[2]
+    sigma1_estim <- estim[3]
+    sigma2_estim <- estim[4]
+    p_estim <- estim[5]
+
+    #Difference
+    Tb[b]<-abs_diff(xb_star, mu1_estim, mu2_estim, sigma1_estim, sigma2_estim, p_estim )
+    
+  }
+  return(1/(Bboot+1)*(1 + sum(Tb[(Tb>T0)])))
+}
+
+Param_bootstrap(X, Bboot = 10, mu1_init = mu1_init, mu2_init = mu2_init, sigma1_init = sigma1_init, sigma2_init = sigma2_init, p_init = p_init)
+
+
+```
+
+
+## 5. Interpretation
+
+
+## 6. Discussion
+
+
+
+
+
+
