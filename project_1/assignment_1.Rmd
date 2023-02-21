@@ -18,7 +18,6 @@ lapply(c("dplyr","chron","ggplot2","tidyr","questionr","survival","forcats","tid
        library, character.only=TRUE)
 
 Sys.setlocale("LC_TIME", "English")
-setwd("C:/Users/candi/Desktop/ETUDES/EPFL1A/semestre 2/applied statistics/applied_stat_359523")
 df <- read.csv("1_snow_particles.csv")
 ```
 
@@ -235,8 +234,10 @@ for (i in 2:n_iter_max) {
   prop <- abs(prop)
   
   # Compute acceptance probability
-  p_prop <- #to do
-  p_curr <- #to do 
+  #p_prop <- sum(dnorm(X, mean = c(prop[1], prop[2], prop[3], prop[4], prop[5]), sd=prop_sd))
+  p_prop = 1
+  p_curr = 1 # we have a gaussian proposal that is symmetric so the ratio of p_prop/p_curr is 1 (I set both at 1 to have the ratio equal to 1) 
+  #p_curr <- sum(dnorm(X, mean = chain[i-1,], sd = prop_sd))
   accept_prob <- likelihood_mixed(X, prop[1], prop[2], prop[3], prop[4], prop[5])*p_prop/(likelihood_mixed(X, chain[i-1,][1], chain[i-1,][2], chain[i-1,][3], chain[i-1,][4], chain[i-1,][5])*p_curr)
   
   # Decide whether to accept or reject proposal
@@ -297,25 +298,25 @@ Param_bootstrap <- function(xn, Bboot, mu1_init, mu2_init, sigma1_init, sigma2_i
   #Bootstrap procedure
   Tb <- rep(NA,Bboot)
   for (b in 1:Bboot){
-    #Generate sample from approximate candidate law Poi(lambda)
+    #Generate sample from approximate candidate law 
     xb_star <- rlnormMix(n, mu1_init,sigma1_init, mu2_init, sigma2_init, p_init)
     #Estimate parameters of the sample
-    estim <- estimate(xb_star, p_init, mu1_init,sigma1_init, mu2_init, sigma2_init) #do the function estimate
-    mu1_init <- estim[1]
-    mu2_init <- estim[2]
-    sigma1_init <- estim[3]
-    sigma2_init <- estim[4]
-    p_init <- estim[5]
+    estim <- estimate(xb_star, p_init, mu1_init,sigma1_init, mu2_init, sigma2_init) #change with MLE estimates ? 
+    mu1_estim <- estim[1]
+    mu2_estim <- estim[2]
+    sigma1_estim <- estim[3]
+    sigma2_estim <- estim[4]
+    p_estim <- estim[5]
 
     #Difference
-    Tb[b]<-abs_diff(xb_star, mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)
+    Tb[b]<-abs_diff(xb_star, mu1_estim, mu2_estim, sigma1_estim, sigma2_estim, p_estim )
     
   }
   return(1/(Bboot+1)*(1 + sum(Tb[(Tb>T0)])))
 }
 
-Param_bootstrap(X, Bboot = 10, mu1_init = mu1_init, mu2_init = mu2_init, sigma1_init = sigma1_init, sigma2_init = sigma2_init, p_init = p_init)
-#pb : does not work for large values of Bboot
+Param_bootstrap(X, Bboot = 100, mu1_init = mu1_init, mu2_init = mu2_init, sigma1_init = sigma1_init, sigma2_init = sigma2_init, p_init = p_init)
+
 
 ```
 
