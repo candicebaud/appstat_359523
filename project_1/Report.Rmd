@@ -31,21 +31,37 @@ In this report, we work with a data set TO DO
 ## 2. Data Characteristics
 The outcome of interest is the variable *retained* which is the fraction of particles belonging to each diameter bin. The other variables we have are 
 
-*The startpoint of the bin
-*The endpoint of the bin
-*The number of particles detected 
++ The startpoint of the bin,
++ The endpoint of the bin,
++ The number of particles detected,
 
 Our goal is to simulate snow-flake diameters that are compatible with the data in order to study aeolian transport of snow. 
 
-I represent below the percentage of particles in each bin.
-```{r exploratory, echo=FALSE}
-plot(df$X,df$retained..../100, main ='Percentage of particles in each bin', xlab = 'bin', ylab ='Frequency(%)')
+Figure 1 shows the variable of interest ie the percentage of particles in each bin (the distribution is plotted according to the bin startpoint). The plot we obtain allows us to think of a mixture of log-normal distribution with two visible peaks : one at the bin 11 and one at the bin 30. 
+
+```{r, fig.align="center", fig.cap="Figure 1: Percentage of particles in each bin"}
+plot(df$startpoint,df$retained..../100, main ='Percentage of particles in each bin', xlab = 'bin startpoint', ylab ='Frequency(%)', type='l')
 ```
 
 
 
 ## 3. Model fitting
-### With an EM algorithm 
+Now that we identified graphically that our data is possibly distributed as a mixture of two log normal distributions, we want to evaluate the parameters. The density is 
+$f(x) = w_1 \frac{1}{x \sigma_1 \sqrt{2\pi}} e^{-\frac{(\ln x - \mu_1)^2}{2\sigma_1^2}} + w_2 \frac{1}{x \sigma_2 \sqrt{2\pi}} e^{-\frac{(\ln x - \mu_2)^2}{2\sigma_2^2}}$
+
+which means that we have the following five parameters to evaluate 
+
+$w_1$,$mu_1$,$sigma_1$,$mu_2$,$sigma_2$,
+
+We use an EM-algorithm to do a first evaluation of those parameters, and then we will try to improve our estimation with local search and with a bayesian approach.
+
+### EM algorithm 
+We implement an EM-algorithm taking as initialisation parameters 
+
+$w_1 = 0.5$, $mu_1 = 0.25$, $sigma_1 = 0.75$, $mu_2 = 0.25$, $sigma_2 = 0.5$
+
+We define $epsilon = 0.001$ the threshold such that we stop the algorithm when the difference in the log-likelihoods is under $epsilon$.
+
 ```{r densities, echo=FALSE}
 lognormal <- function(x, mu1, sigma1){
   if (x!=0){
@@ -72,9 +88,7 @@ X <- df$retained....
 
 estimate <- function(X, p_init, mu1_init, mu2_init, sigma1_init, sigma2_init){
 
-
 Y <- numeric(length = length(X))
-
 
 for (i in 1:length(X)){
   if (X[i]!=0){
@@ -142,8 +156,9 @@ param <- estimate(X = X, p_init = p_init, mu1_init = mu1_init, mu2_init =mu2_ini
 print(c('The obtained parameters are', param))
 ```
 
+With the parameters we obtained, we generate Figure2. With the parameters we estimated, the figure shows the histogram we obtain and the data repartition above to compare. 
 
-```{r bi log normal fit, echo=FALSE}
+```{r, fig.align="center", fig.cap="Figure 2: Fitted distribution histogram"}
 mu1_init <- param[1]
 mu2_init <- param[2]
 sigma1_init <- param[3]
@@ -153,13 +168,32 @@ p_init <- param[5]
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init) }
-hist(sample)
+hist(sample, main ='Histogram of the fitted distribution and data density', xlab='bin startpoint', ylab = 'Number of occurences')
 lines(df$startpoint, df$retained....)
 #lines(df$retained...., bilognorm(df$retained...., mu1_init, mu2_init, sigma1_init, sigma2_init, p_init))
 ```
 
+The obtained histogram is not fully satisfactory because the peak at 0.6 in the data density is not present in the histogram. 
+
+We decide to do some local optimization in order to improve this fit. 
+
 ### Local optimization
-```{r optimization, echo=FALSE}
+The considered setup here is that I defined an $epsilon = 0.1$ that I will add or subtract to my parameters to see to what extent this improves the model. The different setups are the following 
+
+| Setup |  mean 1       |     mean 2  |    standard deviation 1| standard deviation 2     |    probability  |
+|---------|--------------|------------|---------------|---------------|----------|
+| Setup 1 | $mu_1$       |     $mu_2$  |    $sigma_1$ | $sigma_2$     |    $p$  |
+| Setup 2 | $mu_1 + eps$ | $mu_2+eps$ | $sigma_1+eps$ | $sigma_2+eps$ | $p+2eps$ |
+| Setup 3 | $mu_1 - eps$ | $mu_2-eps$ | $sigma_1-eps$ | $sigma_2-eps$ | $p+2eps$ |
+| Setup 4 | $mu_1 - eps$ | $mu_2+eps$ | $sigma_1+eps$ | $sigma_2+eps$ | $p+2eps$ |
+| Setup 5 | $mu_1 + eps$ | $mu_2-eps$ | $sigma_1$     | $sigma_2$     | $p+2eps$ |
+| Setup 6 | $mu_1 - eps$ | $mu_2+eps$ | $sigma_1$     | $sigma_2$     |$p+eps$ |
+
+where $mu_1$, $sigma_1$, $mu_2$, $sigma_2$ and $p$ are the parameters estimated with the EM algorithm. In other words, setup number one replicates uses the parameters from our previous estimation and is used to be compared to the different five other setups. 
+
+The results are given by Figure3. It appears that setup 4 and 2 are improving the model even though the first part of the histogram is way larger than it should be still.
+
+```{r, fig.align="center", fig.cap="Figure 3: Local optimization"}
 #values we obtained and that we want to optimize 
 mu1 <- mu1_init
 mu2 <- mu2_init
@@ -170,52 +204,55 @@ p <- p_init
 #we define eps from which we will make our values change to see which model is better fitting our data
 eps = 0.1
 
-par(mfrow = c(3,2))
+par(mfrow = c(2,3))
 
 #graph1
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init) }
-hist(sample, main='graph1')
+hist(sample, main='Distribution with setup 1')
 lines(df$startpoint, df$retained....)
 
 #graph2
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], mu1_init+eps, mu2_init+eps, sigma1_init+eps, sigma2_init+eps, p_init+2*eps) }
-hist(sample, main='graph2')
+hist(sample, main='Distribution with setup 2')
 lines(df$startpoint, df$retained....)
 
 #graph3
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], mu1_init-eps, mu2_init-eps, sigma1_init-eps, sigma2_init-eps, p_init+2*eps) }
-hist(sample, main='graph3')
+hist(sample, main='Distribution with setup 3')
 lines(df$startpoint, df$retained....)
 
 #graph4
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], mu1_init-eps, mu2_init+eps, sigma1_init+eps, sigma2_init+eps, p_init+2*eps) }
-hist(sample, main='graph4')
+hist(sample, main='Distribution with setup 4')
 lines(df$startpoint, df$retained....)
 
 #graph5
 sample <- numeric(length = 52)
 for (i in 1:52){
-  sample[i] <- bilognorm(df$retained....[i], mu1_init-eps, mu2_init+2*eps, sigma1_init, sigma2_init, p_init+2*eps) }
-hist(sample, main='graph5')
+  sample[i] <- bilognorm(df$retained....[i], mu1_init+eps, mu2_init-eps, sigma1_init, sigma2_init, p_init+2*eps) }
+hist(sample, main='Distribution with setup 5')
 lines(df$startpoint, df$retained....)
 
 #graph6
 sample <- numeric(length = 52)
 for (i in 1:52){
-  sample[i] <- bilognorm(df$retained....[i], mu1_init-eps, mu2_init+2*eps, sigma1_init + eps, sigma2_init, p_init+2*eps) }
-hist(sample, main = 'graph6')
+  sample[i] <- bilognorm(df$retained....[i], mu1_init-eps, mu2_init+eps, sigma1_init, sigma2_init, p_init+eps) }
+hist(sample, main = 'Distribution with setup 6')
 lines(df$startpoint, df$retained....)
 ```
 
+
 ### Bayesian approach
+We use in this section MCMC (Markov chain Monte Carlo) to approximate better the parameters obtained with the local search. The proposal we use is the Gaussian distribution with standard deviation 0.01 and initial mean given by the parameters obtained in the previous section. 
+
 ```{r MCMC, echo=FALSE}
 likelihood_mixed <- function(xn, mu1, mu2, sigma1, sigma2, p){
   old_likelihood <- 0
@@ -229,11 +266,11 @@ burn_in <- 1000
 thin <- 2
 
 #initialize the parameters 
-mu1 <- mu1_init
-mu2 <- mu2_init
-sigma1 <- sigma1_init
-sigma2 <- sigma2_init
-p <- p_init
+mu1 <- mu1_init-eps
+mu2 <- mu2_init+eps
+sigma1 <- sigma1_init+eps
+sigma2 <- sigma2_init+eps
+p <- p_init+2*eps
 params <- c(mu1, mu2, sigma1, sigma2, p)
 
 chain <- matrix(0, nrow = n_iter_max, ncol = length(params))
@@ -267,78 +304,40 @@ posterior <- posterior[seq(1, nrow(posterior), thin),]
 ```
 
 
+Figure 4 allows us to see the new fitted distribution which doesn't appear better than the previous one. 
 
-Check if it improved our model 
-
-```{r improvement, echo=FALSE}
+```{r, fig.align="center", fig.cap="Figure 4: MCMC results"}
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], prop[1], prop[2], prop[3], prop[4], prop[5]) }
-hist(sample)
+hist(sample, main='', xlab = 'sample values', ylab ='number of occurences')
 lines(df$startpoint, df$retained....)
 ``` 
 
 
-## 4. Stability/sensitivity Inspection
+## 4. Results analysis
+We study in this section our results. TO DO 
 ### Convergence of the MCMC 
 ```{r convergence, echo=FALSE}
-par(mfrow = c(3,2))
+par(mfrow = c(2,3))
 for (i in 1:5) {
   plot(posterior[,i], type="l", main ='', xlab = 'iteration', ylab ='')
 }
 ```
 
 
-### Plausibility of the mixture of lognormal
-```{r parametric bootstrap, echo=FALSE}
-library("EnvStats")
-abs_diff <- function(xn, mu1, mu2, sigma1, sigma2,p){
-  #Compute EDF
-  F_N <- ecdf(xn)
-  #Compute absolute difference
-  n=length(xn)
-  grid<-runif(n, 0, 10)
-  for(i in 1:n){
-    sample <- bilognorm(grid[i],mu1, mu2, sigma1, sigma2, p)
-  }
-  difabs <- abs(F_N(grid)-sample)
-  #Store result
-  return(max(difabs))
-}
+### Parametric bootstrap
+We implement in this section a parametric bootstrap algorithm [] to assess the goodness of fit of our distribution. To do so, we sample from the fitted distribution with our estimated parameters. We use the Kolmogorov-Smirnov statistic $T = \sup_x \Big| \widehat{F}_N(x) - F_\widehat{\lambda}(x) \Big|$, where we suppose that under $H_0$ our estimated parameters $\widehat{\lambda}$ are consistent to the real parameters ${\lambda}_0$.
+
+We then generate resamples and estimate the parameters on those new resamples. We are then able to compute the empirical distribution function and therefore compute the T statistic. We can then compute the p-value of the test.
 
 
-Param_bootstrap <- function(xn, Bboot, mu1_init, mu2_init, sigma1_init, sigma2_init, p_init){
-  #Compute parameters of sample xn
-  n = length(xn)
-  T0 <- abs_diff(xn, mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)
-  
-  #Bootstrap procedure
-  Tb <- rep(NA,Bboot)
-  for (b in 1:Bboot){
-    #Generate sample from approximate candidate law 
-    xb_star <- rlnormMix(n, mu1_init,sigma1_init, mu2_init, sigma2_init, p_init)
-    #Estimate parameters of the sample
-    estim <- estimate(xb_star, p_init, mu1_init,sigma1_init, mu2_init, sigma2_init) #change with MLE estimates ? 
-    mu1_estim <- estim[1]
-    mu2_estim <- estim[2]
-    sigma1_estim <- estim[3]
-    sigma2_estim <- estim[4]
-    p_estim <- estim[5]
-
-    #Difference
-    Tb[b]<-abs_diff(xb_star, mu1_estim, mu2_estim, sigma1_estim, sigma2_estim, p_estim )
-    
-  }
-  return(1/(Bboot+1)*(1 + sum(Tb[(Tb>T0)])))
-}
-
-Param_bootstrap(X, Bboot = 10, mu1_init = mu1_init, mu2_init = mu2_init, sigma1_init = sigma1_init, sigma2_init = sigma2_init, p_init = p_init)
 
 
-```
 
 
-## 5. Interpretation
+
+### Interpretation
 
 
 ## 6. Discussion
@@ -347,4 +346,5 @@ Param_bootstrap(X, Bboot = 10, mu1_init = mu1_init, mu2_init = mu2_init, sigma1_
 
 
 
-
+## 7. References
+[] https://github.com/TMasak/StatComp/blob/master/Notes/10_Bootstrap.Rmd, section 'Parametric bootstrap and goodness of fit' 

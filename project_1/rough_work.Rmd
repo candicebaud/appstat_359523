@@ -30,7 +30,7 @@ df$binsize <- df$endpoint - df$startpoint
 plot(log(df$retained..../100))
 
 library('EnvStats')
-hist(rlnormMix(52, meanlog1 = log(10), sdlog1 = 0.5, meanlog2 = log(35), sdlog2 = 1, p.mix = 0.7), freq = F )
+hist(rlnormMix(52, meanlog1 = log(10), sdlog1 = 0.5, meanlog2 = log(35), sdlog2 = 1, p.mix = 0.2), freq = F )
 lines(df$X,df$retained..../100)
 
 ```
@@ -124,6 +124,11 @@ p_init <- p_new
 #we put the likelihood at 0 to be able to compute them again 
 old_likelihood <- 0 
 new_likelihood <- 0 
+
+if (is.na(err)==TRUE){
+  err = 0 
+} 
+
 
 }
 
@@ -280,6 +285,62 @@ lines(df$startpoint, df$retained....)
 
 # Parametric bootstrap
 We use again what we did during the first semester
+
+We implement in this section a parametric bootstrap algorithm [] to assess the goodness of fit of our distribution. To do so, we sample from the fitted distribution with our estimated parameters. We use the Kolmogorov-Smirnov statistic $T = \sup_x \Big| \widehat{F}_N(x) - F_\widehat{\lambda}(x) \Big|$, where we suppose that under $H_0$ our estimated parameters $\widehat{\lambda}$ are consistent to the real parameters ${\lambda}_0$.
+
+We then generate resamples and estimate the parameters on those new resamples. We are then able to compute the empirical distribution function and therefore compute the T statistic. We can then compute the p-value of the test.
+
+```{r parametric bootstrap 2, echo=FALSE}
+T_stat <- function(xn, mu1, mu2, sigma1, sigma2,p){
+  F_N <- ecdf(xn) #the ecdf of our sample
+  n = length(xn) #size of the sample
+  evaluate_diff <- runif(n, min(xn), max(xn)) 
+  sample <- rep(0,n)
+  for (i in 1:n){
+    sample[i] <- bilognorm(grid[i], mu1, mu2, sigma1, sigma2, p)
+  }
+  F_star <- ecdf(sample)
+  #difabs <- abs(F_N(grid) - plnormMix(grid, meanlog1 = abs(mu1), sdlog1 = abs(sigma1), meanlog2 = abs(mu2), sdlog2 = abs(sigma2), p.mix = p) )
+  difabs <- abs(F_N(grid) - F_star(grid) )
+  return(max(difabs))
+}
+
+
+Bootstrap <- function(xn, mu1, mu2, sigma1, sigma2,p, B){
+  n = length(xn)
+  #first we utilize our sample ie df$retained....
+  param = estimate(xn, p, mu1, mu2, sigma1, sigma2)
+  mu1_estim <- param[1]
+  mu2_estim <- param[2]
+  sigma1_estim <- param[3]
+  sigma2_estim <- param[4]
+  p_estim <- param[5]
+  T_0 <- T_stat(xn, mu1_estim, mu2_estim, sigma1_estim, sigma2_estim, p_estim) 
+  #We will then compare T_0 and the other values of T obtained with our bootstrap
+  
+  #Bootstrap
+  T_boot <- rep(NA, B)
+  x_resamples <- matrix(NA, nrow = B, ncol = n)
+  for (i in 1:B) {
+    x_resamples[i,] <- sample(xn, replace = TRUE)
+  }
+  for(i in 1:B){
+    param = estimate(x_resamples[i,], p, mu1, mu2, sigma1, sigma2)
+    mu1_estim <- param[1]
+    mu2_estim <- param[2]
+    sigma1_estim <- param[3]
+    sigma2_estim <- param[4]
+    p_estim <- param[5]
+    T_boot[i] <- T_stat(x_resamples[i,], mu1_estim, mu2_estim, sigma1_estim, sigma2_estim, p_estim) 
+  }
+  return(1/(B+1)*(1 + sum(Tb[(Tb>T_0)])))
+}
+
+Bootstrap(X, mu1, mu2, sigma1, sigma2,p, 1000)
+
+```
+
+
 ```{r parametric bootstrap, echo=FALSE}
 library("EnvStats")
 abs_diff <- function(xn, mu1, mu2, sigma1, sigma2,p){
@@ -288,10 +349,7 @@ abs_diff <- function(xn, mu1, mu2, sigma1, sigma2,p){
   #Compute absolute difference
   n=length(xn)
   grid<-runif(n, 0, 10)
-  for(i in 1:n){
-    sample <- bilognorm(grid[i],mu1, mu2, sigma1, sigma2, p)
-  }
-  difabs <- abs(F_N(grid)-sample)
+  difabs <- abs(F_N(grid) - plnormMix(grid, meanlog1 = mu1, sdlog1 = sigma1, meanlog2 = mu2, sdlog2 = sigma2, p.mix = p))
   #Store result
   return(max(difabs))
 }
@@ -319,12 +377,12 @@ Param_bootstrap <- function(xn, Bboot, mu1_init, mu2_init, sigma1_init, sigma2_i
     Tb[b]<-abs_diff(xb_star, mu1_estim, mu2_estim, sigma1_estim, sigma2_estim, p_estim )
     
   }
-  return(1/(Bboot+1)*(1 + sum(Tb[(Tb>T0)])))
+  return(1/(Bboot+1)*(1 + sum(Tb[(Tb>T0)], na.rm = T )))
 }
 
-Param_bootstrap(X, Bboot = 100, mu1_init = mu1_init, mu2_init = mu2_init, sigma1_init = sigma1_init, sigma2_init = sigma2_init, p_init = p_init)
+Param_bootstrap(X, Bboot = 1000, mu1_init = mu1_init, mu2_init = mu2_init, sigma1_init = sigma1_init, sigma2_init = sigma2_init, p_init = p_init)
 
-
+#pb in the algo
 ```
 
 # Comments 
