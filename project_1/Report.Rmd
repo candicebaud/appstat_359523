@@ -40,7 +40,7 @@ Our goal is to simulate snow-flake diameters that are compatible with the data i
 Figure 1 shows the variable of interest ie the percentage of particles in each bin (the distribution is plotted according to the bin startpoint). The plot I obtain allows us to think of a mixture of log-normal distribution with two visible peaks : one at the startpoint 0.25 and one at the startpoint 0.75 approximately. 
 
 ```{r, fig.align="center", fig.cap="Figure 1: Percentage of particles in each bin"}
-plot(df$startpoint,df$retained..../100, main ='Percentage of particles in each bin', xlab = 'bin startpoint', ylab ='Frequency(%)', type='l')
+plot(df$startpoint,df$retained...., main ='Percentage of particles in each bin', xlab = 'bin startpoint', ylab ='Frequency(%)', type='l')
 ```
 
 
@@ -66,7 +66,7 @@ I define $epsilon = 0.001$ the threshold such that I stop the algorithm when the
 
 ```{r densities, echo=FALSE}
 lognormal <- function(x, mu1, sigma1){
-  if (x!=0){
+  if (x>0){
     return((1/x)*dnorm(log(x), mean=mu1, sd=sigma1))}
   else{
     return(0)
@@ -478,7 +478,7 @@ Figure 6 allows us to see the new fitted distribution which doesn't appear bette
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], prop[1], prop[2], prop[3], prop[4], prop[5]) }
-hist(sample, main='', xlab = 'sample values', ylab ='number of occurences')
+hist(sample, main='Fitted model with a MCMC method', xlab = 'sample values', ylab ='number of occurences')
 lines(df$startpoint, df$retained....)
 ``` 
 
@@ -569,9 +569,9 @@ Bootstrap <- function(xn, T_0, mu1, mu2, sigma1, sigma2, p, B){
 }
 
 Bootstrap(X, T_0, mu1, mu2, sigma1, sigma2, p, 100)
-#b <- numeric(10)
-#for(i in 1:10){
-  #b[i] <- Bootstrap(X, T_0, mu1, mu2, sigma1, sigma2, p, 100)}
+#b <- numeric(5)
+#for(i in 1:5){
+  #b[i] <- Bootstrap(X, T_0, mu1, mu2, sigma1, sigma2, p, 50)}
 #boxplot(b, main ='P-value of the parametric bootstrap boxplot')
 ```
 
