@@ -102,12 +102,10 @@ X <- df$retained....
 
 estimate <- function(X, p_init, mu1_init, mu2_init, sigma1_init, sigma2_init){
 
-
 Y <- numeric(length = length(X))
 
-
 for (i in 1:length(X)){
-  if (X[i]!=0){
+  if (X[i]>0){
     Y[i] <- log(X[i])}}
 
 N = length(X)
@@ -128,10 +126,16 @@ for (i in 1:length(X)){
 old_likelihood <- log(old_likelihood)
 
 #new parameters
-f_theta <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init) + (1-p_init)*dnorm(Y, mean=mu2_init, sd = sigma2_init)
+#f_theta <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init) + (1-p_init)*dnorm(Y, mean=mu2_init, sd = sigma2_init)
 
-if (test_0(f_theta) >0 ){
-  gamma <- 0}else {gamma <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init)/f_theta}
+#if (test_0(f_theta) >0 ){
+  #gamma <- 0}else {gamma <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init)/f_theta}
+f_theta <- numeric(length(X))
+gamma<- numeric(length(X))
+for(i in 1:length(X)){
+f_theta[i] <- bilognorm(X[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)
+if(f_theta[i]>0){
+gamma[i] <- p_init*lognormal(X[i], mu1_init, sigma1_init)/f_theta[i]}else{gamma[i]<-1}}
 
 s <- sum(gamma)
 p_new <- s/N
@@ -305,20 +309,7 @@ I can now reevaluate our parameters and refit the model to see if there were any
 #sigma2_init <- 0.5
 new_X <- unname(unlist(pol[2]))
 
-
-
-
-estimate_2 <- function(new_X,p_init, mu1_init, mu2_init, sigma1_init, sigma2_init ){
-#criterion : epsilon 
-eps = 0.0001
-k=0
-err = 20000
-old_likelihood <- 0 
-new_likelihood <- 0 
-p_new <- numeric(length(new_X))
-
-param <- rep(1,5)
-
+estimate_2 <- function(new_X, p_init, mu1_init, mu2_init, sigma1_init, sigma2_init ){
 Y <- numeric(length = length(new_X))
 
 for (i in 1:length(new_X)){
@@ -327,59 +318,77 @@ for (i in 1:length(new_X)){
 
 N = length(new_X)
 
-while(err>eps){
-    if (null_param(param) == 0){
+#criterion : epsilon 
+eps = 0.001
+k=0
+err = 20000
+old_likelihood <- 0 
+new_likelihood <- 0 
+p_new <- numeric(length=N)
+param <- c(1,1,1,1,1)
+
+while(null_param(param)==0){
+if(err>eps){
   #log likelihood computation
-    for (i in 1:length(Y)){
-      a <- bilognorm(new_X[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)
-      if (is.na(a) == F){
-        old_likelihood <- old_likelihood + a}} 
-  #old_likelihood <- log(old_likelihood)
-  
-  #new parameters
-    f_theta <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init) + (1-p_init)*dnorm(Y, mean=mu2_init, sd = sigma2_init)
-    
-    if (test_0(f_theta) >0 ){
-      gamma <- rep(0, n)
-    } else{gamma <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init)/f_theta}
-    s <- sum(gamma)
-    p_new <- s/N
-    mu_1_new <- sum(Y*gamma, na.rm=T)/s
-    mu_2_new <- sum(Y*(1-gamma), na.rm=T)/(N-s)
-    s1 <- sum(gamma*((Y - mu1_init)**2), na.rm=T)
-    s2 <- sum((1-gamma)*((Y - mu2_init)**2), na.rm=T)
-    sigma1_new <- sqrt(s1/(N-s))
-    sigma2_new <- sqrt(s2/(N-s))
-    
-    #new log likelihood computation
-    for (i in 1:length(X)){
-      a <- bilognorm(X[i], mu_1_new, mu_2_new, sigma1_new, sigma2_new, p_new)
-      if (is.na(a) == F){
-      new_likelihood <- new_likelihood + a}}
-    #new_likelihood <- log(new_likelihood)
-    
-    #k represents the number of iterations before convergence
-    k = k+1
-    
-    #err is the error 
-    err = abs(new_likelihood - old_likelihood)
-    
-    #new parameters
-    mu1_init <- mu_1_new
-    mu2_init <- mu_2_new
-    sigma1_init <- sigma1_new
-    sigma2_init <- sigma2_new
-    p_init <- p_new
-    
-    param <- c(mu1_init,mu2_init, sigma1_init,sigma2_init,p_init)
-    
-    #I put the likelihood at 0 to be able to compute them again 
-    old_likelihood <- 0 
-    new_likelihood <- 0 
-    
-    }else{err=0}
-  return(param)
+for (i in 1:length(new_X)){
+  if(new_X[i]<0){
+    new_X[i] = 0}
+  a <- bilognorm(new_X[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)
+  if (is.na(a)==FALSE){
+    old_likelihood <- old_likelihood + a}}
+old_likelihood <- log(old_likelihood)
+
+#new parameters
+#f_theta <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init) + (1-p_init)*dnorm(Y, mean=mu2_init, sd = sigma2_init)
+
+#if (test_0(f_theta) >0 ){
+  #gamma <- 0}else {gamma <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init)/f_theta}
+f_theta <- numeric(length(new_X))
+gamma<- numeric(length(new_X))
+for(i in 1:length(new_X)){
+  f_theta[i] <- bilognorm(new_X[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)
+ if(f_theta[i]>0){
+gamma[i] <- p_init*lognormal(new_X[i], mu1_init, sigma1_init)/f_theta[i]}else{gamma[i] =  1}}
+
+s <- sum(gamma)
+p_new <- s/N
+mu_1_new <- sum(Y*gamma)/s
+mu_2_new <- sum(Y*(1-gamma))/(N-s)
+s1 <- sum(gamma*(Y - mu1_init)**2)
+s2 <- sum((1-gamma)*(Y - mu2_init)**2)
+sigma1_new <- sqrt(s1/(N-s))
+sigma2_new <- sqrt(s2/(N-s))
+
+#new log likelihood computation
+for (i in 1:length(X)){
+  if(new_X[i]<0){
+    new_X[i] = abs(new_X[i])}
+  a <- bilognorm(new_X[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)
+  if (is.na(a)==FALSE){
+    new_likelihood <- new_likelihood + a}}
+new_likelihood <- log(new_likelihood)
+
+#k represents the number of iterations before convergence
+k = k+1
+
+#err is the error 
+err = abs(new_likelihood - old_likelihood)
+
+#new parameters
+mu1_init <- mu_1_new
+mu2_init <- mu_2_new
+sigma1_init <- sigma1_new
+sigma2_init <- sigma2_new
+p_init <- p_new
+
+param <- c(mu1_init,mu2_init,sigma1_init,sigma2_init,p_init)
+#I put the likelihood at 0 to be able to compute them again 
+old_likelihood <- 0 
+new_likelihood <- 0 
+
 }}
+  return(param)
+}
 
 new_param <- estimate_2(new_X, p_init, mu1_init, mu2_init, sigma1_init, sigma2_init)
 
@@ -387,7 +396,7 @@ print(c('The obtained values are', new_param))
 ```
 
 
-```{r fig.align="center", fig.cap="Figure 5: Kernel density estimation results"}
+```{r, fig.align="center", fig.cap="Figure 5: Kernel density estimation results"}
 par(mfrow=c(1,2))
 sample <- numeric(length = 52)
 for (i in 1:52){
@@ -406,7 +415,7 @@ lines(df$startpoint, df$retained....)
 ### Bayesian approach
 I use in this section MCMC (Markov chain Monte Carlo) to approximate better the parameters obtained with the local search. The proposal I use is the Gaussian distribution with standard deviation 0.01 and initial mean given by the parameters obtained in the previous section. The advantage of this proposal is that its distribution is symmetric. 
 
-```{r MCMC, echo=FALSE}
+```{r, MCMC, echo=FALSE}
 likelihood_mixed <- function(xn, mu1, mu2, sigma1, sigma2, p){
   old_likelihood <- 0
   for (i in 1:length(xn)){
@@ -543,7 +552,7 @@ Bootstrap <- function(xn, T_0, mu1, mu2, sigma1, sigma2, p, B){
     if (x_resamples[i,][k]>0){
       Y[i] <- log(x_resamples[i,][k])}}
 
-    param = estimate_2(x_resamples[i,], p, mu1, mu2, sigma1, sigma2)
+    param = estimate(x_resamples[i,], p, mu1, mu2, sigma1, sigma2)
     mu1_estim <- param[1]
     mu2_estim <- param[2]
     sigma1_estim <- param[3]
@@ -559,10 +568,11 @@ Bootstrap <- function(xn, T_0, mu1, mu2, sigma1, sigma2, p, B){
   return((1/(B+1))*(1 + s))
 }
 
-b <- numeric(10)
-for(i in 1:10){
-  b[i] <- Bootstrap(X, T_0, mu1, mu2, sigma1, sigma2, p, 100)}
-boxplot(b, main ='P-value of the parametric bootstrap boxplot')
+Bootstrap(X, T_0, mu1, mu2, sigma1, sigma2, p, 100)
+#b <- numeric(10)
+#for(i in 1:10){
+  #b[i] <- Bootstrap(X, T_0, mu1, mu2, sigma1, sigma2, p, 100)}
+#boxplot(b, main ='P-value of the parametric bootstrap boxplot')
 ```
 
 
