@@ -37,7 +37,7 @@ lines(df$X,df$retained..../100)
 
 ```{r densities, echo=FALSE}
 lognormal <- function(x, mu1, sigma1){
-  if (x!=0){
+  if (x>0){
     return((1/x)*dnorm(log(x), mean=mu1, sd=sigma1))}
   else{
     return(0)
@@ -52,6 +52,18 @@ bilognorm <- function(x, mu1, mu2, sigma1, sigma2, p) {
 
 # Fit a mixture of log normal distributions
 ## EM algorithm
+
+```{r test_0, echo=FALSE}
+test_0 <- function(xn){
+  res <-0
+  for (i in 1:length(xn)){
+    if (xn[i] ==0){
+      res <- res + 1
+    }
+  }
+  return(res)}
+
+```
 
 ```{r bi log normal EM algo, echo=FALSE}
 #Initialisation 
@@ -92,7 +104,10 @@ old_likelihood <- log(old_likelihood)
 #new parameters
 f_theta <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init) + (1-p_init)*dnorm(Y, mean=mu2_init, sd = sigma2_init)
 
-gamma <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init)/f_theta
+if (test_0(f_theta) >0 ){
+   gamma <- rep(0, n)
+}
+else {gamma <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init)/f_theta}
 
 s <- sum(gamma)
 p_new <- s/N
@@ -124,10 +139,6 @@ p_init <- p_new
 #we put the likelihood at 0 to be able to compute them again 
 old_likelihood <- 0 
 new_likelihood <- 0 
-
-if (is.na(err)==TRUE){
-  err = 0 
-} 
 
 
 }
@@ -213,6 +224,159 @@ for (i in 1:52){
 hist(sample, main = 'graph6')
 lines(df$startpoint, df$retained....)
 ```
+```{r optimization 2, echo=FALSE}
+library('KernSmooth')
+
+plot(df$startpoint, df$retained...., type ='l', col = 'red')
+pol <- locpoly(df$startpoint, df$retained...., drv = 0, degree =2, kernel = "normal", 
+        bandwidth = 0.25 )
+lines(pol)
+
+```
+
+If we try to estimate only a 'simple' lognormal.
+```{r test optim, echo=FALSE}
+MLE_lognormal <- function(xn){
+  n = length(xn)
+  y<-numeric(n)
+  mu<-0
+  for(i in 1:length(xn)){
+    if (xn[i]>0){
+      y[i] <- log(xn[i])
+      mu <- mu + y[i]
+    }
+  }
+  mu <- mu/n
+  sigmasq <- (1/n)*sum((y-mu)**2)
+  return (c(mu, sigmasq))
+} 
+
+param <- MLE_lognormal(new_X <- unname(unlist(pol[2])))
+
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- lognormal(df$retained....[i], param[1], param[2] ) }
+hist(sample)
+lines(df$startpoint, df$retained....)
+```
+
+```{r null param, echo=FALSE}
+null_param <- function(param){
+  res <-0
+  for(i in 1:length(param)){
+    if (param[i] <0.1){
+      res <- res +1 
+    }
+  }
+  return(res)
+}
+```
+
+
+
+```{r optimization 3, echo=FALSE}
+#p_init <- 0.5
+#mu1_init <- 0.25
+#mu2_init <- 0.75
+#sigma1_init <- 0.25
+#sigma2_init <- 0.5
+new_X <- unname(unlist(pol[2]))
+
+Y <- numeric(length = length(new_X))
+
+for (i in 1:length(new_X)){
+  if (new_X[i]>0){
+    Y[i] <- log(new_X[i])}}
+
+N = length(new_X)
+
+
+estimate_2 <- function(new_X,p_init, mu1_init, mu2_init, sigma1_init, sigma2_init ){
+#criterion : epsilon 
+eps = 0.01
+k=0
+err = 20000
+old_likelihood <- 0 
+new_likelihood <- 0 
+p_new <- numeric(length=N)
+
+param <- rep(1,5)
+
+while(err>eps){
+    if (null_param(param) == 0){
+  #log likelihood computation
+    for (i in 1:length(Y)){
+      a <- bilognorm(new_X[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)
+      if (is.na(a) == F){
+        old_likelihood <- old_likelihood + a}} 
+  #old_likelihood <- log(old_likelihood)
+  
+  #new parameters
+    f_theta <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init) + (1-p_init)*dnorm(Y, mean=mu2_init, sd = sigma2_init)
+    
+    if (test_0(f_theta) >0 ){
+      gamma <- rep(0, n)
+    } else{gamma <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init)/f_theta}
+    s <- sum(gamma)
+    p_new <- s/N
+    mu_1_new <- sum(Y*gamma, na.rm=T)/s
+    mu_2_new <- sum(Y*(1-gamma), na.rm=T)/(N-s)
+    s1 <- sum(gamma*((Y - mu1_init)**2), na.rm=T)
+    s2 <- sum((1-gamma)*((Y - mu2_init)**2), na.rm=T)
+    sigma1_new <- sqrt(s1/(N-s))
+    sigma2_new <- sqrt(s2/(N-s))
+    
+    #new log likelihood computation
+    for (i in 1:length(X)){
+      a <- bilognorm(X[i], mu_1_new, mu_2_new, sigma1_new, sigma2_new, p_new)
+      if (is.na(a) == F){
+      new_likelihood <- new_likelihood + a}}
+    #new_likelihood <- log(new_likelihood)
+    
+    #k represents the number of iterations before convergence
+    k = k+1
+    
+    #err is the error 
+    err = abs(new_likelihood - old_likelihood)
+    
+    #new parameters
+    mu1_init <- mu_1_new
+    mu2_init <- mu_2_new
+    sigma1_init <- sigma1_new
+    sigma2_init <- sigma2_new
+    p_init <- p_new
+    
+    param <- c(mu1_init,mu2_init, sigma1_init,sigma2_init,p_init)
+    
+    #we put the likelihood at 0 to be able to compute them again 
+    old_likelihood <- 0 
+    new_likelihood <- 0 
+    
+    }else{err=0}
+  return(param)
+}}
+
+new_param <- estimate_2(new_X, p_init, mu1_init, mu2_init, sigma1_init, sigma2_init)
+
+```
+
+```{r kde plots, echo=FALSE}
+par(mfrow=c(1,2))
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], new_param[2], new_param[3], new_param[4], new_param[5], new_param[1]) }
+hist(sample, main='Fitted model with KDE')
+lines(df$startpoint, df$retained....)
+
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1, mu2, sigma1, sigma2, p) }
+hist(sample, main='Fitted model with EM algorithm')
+lines(df$startpoint, df$retained....)
+```
+
+Bon... il y a des problèmes 
+
 
 ## Bayesian approach 
 ```{r MCMC, echo=FALSE}
@@ -228,11 +392,11 @@ burn_in <- 1000
 thin <- 2
 
 #initialize the parameters 
-mu1 <- mu1_init
-mu2 <- mu2_init
-sigma1 <- sigma1_init
-sigma2 <- sigma2_init
-p <- p_init
+mu1 <- new_param[2]
+mu2 <- new_param[3]
+sigma1 <- new_param[4]
+sigma2 <- new_param[5]
+p <- new_param[1]
 params <- c(mu1, mu2, sigma1, sigma2, p)
 
 chain <- matrix(0, nrow = n_iter_max, ncol = length(params))
@@ -290,6 +454,11 @@ We implement in this section a parametric bootstrap algorithm [] to assess the g
 
 We then generate resamples and estimate the parameters on those new resamples. We are then able to compute the empirical distribution function and therefore compute the T statistic. We can then compute the p-value of the test.
 
+```{r parametric bootstrap 3, echo=FALSE}
+
+
+```
+
 ```{r parametric bootstrap 2, echo=FALSE}
 T_stat <- function(xn, mu1, mu2, sigma1, sigma2,p){
   F_N <- ecdf(xn) #the ecdf of our sample
@@ -309,7 +478,7 @@ T_stat <- function(xn, mu1, mu2, sigma1, sigma2,p){
 Bootstrap <- function(xn, mu1, mu2, sigma1, sigma2,p, B){
   n = length(xn)
   #first we utilize our sample ie df$retained....
-  param = estimate(xn, p, mu1, mu2, sigma1, sigma2)
+  param = estimate_2(xn, p, mu1, mu2, sigma1, sigma2)
   mu1_estim <- param[1]
   mu2_estim <- param[2]
   sigma1_estim <- param[3]
