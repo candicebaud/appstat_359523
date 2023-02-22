@@ -282,25 +282,24 @@ null_param <- function(param){
 #sigma2_init <- 0.5
 new_X <- unname(unlist(pol[2]))
 
-Y <- numeric(length = length(new_X))
 
-for (i in 1:length(new_X)){
-  if (new_X[i]>0){
-    Y[i] <- log(new_X[i])}}
-
-N = length(new_X)
-
-
-estimate_2 <- function(new_X,p_init, mu1_init, mu2_init, sigma1_init, sigma2_init ){
+estimate_2 <- function(new_X, p_init, mu1_init, mu2_init, sigma1_init, sigma2_init ){
 #criterion : epsilon 
 eps = 0.01
 k=0
 err = 20000
 old_likelihood <- 0 
 new_likelihood <- 0 
-p_new <- numeric(length=N)
+N <- length(new_X)
+p_new <- numeric(N)
 
 param <- rep(1,5)
+
+Y <- numeric(length = length(new_X))
+
+for (i in 1:length(new_X)){
+  if (new_X[i]>0){
+    Y[i] <- log(new_X[i])}}
 
 while(err>eps){
     if (null_param(param) == 0){
@@ -358,6 +357,7 @@ while(err>eps){
 
 new_param <- estimate_2(new_X, p_init, mu1_init, mu2_init, sigma1_init, sigma2_init)
 
+print(new_param)
 ```
 
 ```{r kde plots, echo=FALSE}
@@ -375,7 +375,7 @@ hist(sample, main='Fitted model with EM algorithm')
 lines(df$startpoint, df$retained....)
 ```
 
-Bon... il y a des problèmes 
+
 
 
 ## Bayesian approach 
@@ -454,11 +454,6 @@ We implement in this section a parametric bootstrap algorithm [] to assess the g
 
 We then generate resamples and estimate the parameters on those new resamples. We are then able to compute the empirical distribution function and therefore compute the T statistic. We can then compute the p-value of the test.
 
-```{r parametric bootstrap 3, echo=FALSE}
-
-
-```
-
 ```{r parametric bootstrap 2, echo=FALSE}
 T_stat <- function(xn, mu1, mu2, sigma1, sigma2,p){
   F_N <- ecdf(xn) #the ecdf of our sample
@@ -466,35 +461,50 @@ T_stat <- function(xn, mu1, mu2, sigma1, sigma2,p){
   evaluate_diff <- runif(n, min(xn), max(xn)) 
   sample <- rep(0,n)
   for (i in 1:n){
-    sample[i] <- bilognorm(grid[i], mu1, mu2, sigma1, sigma2, p)
+    sample[i] <- bilognorm(evaluate_diff[i], mu1, mu2, sigma1, sigma2, p)
   }
   F_star <- ecdf(sample)
   #difabs <- abs(F_N(grid) - plnormMix(grid, meanlog1 = abs(mu1), sdlog1 = abs(sigma1), meanlog2 = abs(mu2), sdlog2 = abs(sigma2), p.mix = p) )
-  difabs <- abs(F_N(grid) - F_star(grid) )
+  difabs <- abs(F_N(evaluate_diff) - F_star(evaluate_diff) )
   return(max(difabs))
 }
 
 
-Bootstrap <- function(xn, mu1, mu2, sigma1, sigma2,p, B){
+#we use the parameters we estimated before
+mu1_boot <- new_param[2]
+mu2_boot <- new_param[3]
+sigma1_boot <- new_param[4]
+sigma2_boot <- new_param[5]
+p_boot <- new_param[1]
+T_0 <- T_stat(X, mu1_boot, mu2_boot, sigma1_boot, sigma2_boot, p_boot) #ok 
+
+Bootstrap <- function(xn, T_0, mu1, mu2, sigma1, sigma2, p, B){
   n = length(xn)
-  #first we utilize our sample ie df$retained....
-  param = estimate_2(xn, p, mu1, mu2, sigma1, sigma2)
-  mu1_estim <- param[1]
-  mu2_estim <- param[2]
-  sigma1_estim <- param[3]
-  sigma2_estim <- param[4]
-  p_estim <- param[5]
-  T_0 <- T_stat(xn, mu1_estim, mu2_estim, sigma1_estim, sigma2_estim, p_estim) 
+  s <- 0
+  #first we utilize our sample ie df$retained.... and estimate our parameters (with the EM algo, we expect the same parameters as previously)
+  #param = estimate(xn, p, mu1, mu2, sigma1, sigma2)
+  #mu1_estim <- param[1]
+  #mu2_estim <- param[2]
+  #sigma1_estim <- param[3]
+  #sigma2_estim <- param[4]
+  #p_estim <- param[5]
+  #T_0 <- T_stat(xn, mu1_estim, mu2_estim, sigma1_estim, sigma2_estim, p_estim) 
   #We will then compare T_0 and the other values of T obtained with our bootstrap
   
   #Bootstrap
   T_boot <- rep(NA, B)
-  x_resamples <- matrix(NA, nrow = B, ncol = n)
+  x_resamples <- matrix(NA, nrow = B, ncol = n) #to put our resamples
+  Y <- matrix(NA, nrow = B, ncol = n) 
   for (i in 1:B) {
     x_resamples[i,] <- sample(xn, replace = TRUE)
   }
   for(i in 1:B){
-    param = estimate(x_resamples[i,], p, mu1, mu2, sigma1, sigma2)
+    #Y <- numeric(length = length(x_resamples[i,]))
+    for (k in 1:length(x_resamples[i,])){
+    if (x_resamples[i,][k]>0){
+      Y[i] <- log(x_resamples[i,][k])}}
+
+    param = estimate_2(x_resamples[i,], p, mu1, mu2, sigma1, sigma2)
     mu1_estim <- param[1]
     mu2_estim <- param[2]
     sigma1_estim <- param[3]
@@ -502,12 +512,21 @@ Bootstrap <- function(xn, mu1, mu2, sigma1, sigma2,p, B){
     p_estim <- param[5]
     T_boot[i] <- T_stat(x_resamples[i,], mu1_estim, mu2_estim, sigma1_estim, sigma2_estim, p_estim) 
   }
-  return(1/(B+1)*(1 + sum(Tb[(Tb>T_0)])))
+  for (i in 1:length(T_boot)){
+    if (T_boot[i]>T_0){
+      s <- s+1
+    }
+  }
+  return((1/(B+1))*(1 + s))
 }
 
-Bootstrap(X, mu1, mu2, sigma1, sigma2,p, 1000)
+Bootstrap(X, T_0, mu1, mu2, sigma1, sigma2, p, 100)
 
+a <- c(0, 1, 2, 3, 4)
+boxplot(a, main='Pvalue')
 ```
+
+A regarder car marhe pour les premiers
 
 
 ```{r parametric bootstrap, echo=FALSE}
@@ -528,9 +547,10 @@ Param_bootstrap <- function(xn, Bboot, mu1_init, mu2_init, sigma1_init, sigma2_i
   #Compute parameters of sample xn
   n = length(xn)
   T0 <- abs_diff(xn, mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)
+  s <- 0 
   
   #Bootstrap procedure
-  Tb <- rep(NA,Bboot)
+  T_boot <- rep(NA,Bboot)
   for (b in 1:Bboot){
     #Generate sample from approximate candidate law 
     xb_star <- rlnormMix(n, mu1_init,sigma1_init, mu2_init, sigma2_init, p_init)
@@ -543,10 +563,15 @@ Param_bootstrap <- function(xn, Bboot, mu1_init, mu2_init, sigma1_init, sigma2_i
     p_estim <- estim[5]
 
     #Difference
-    Tb[b]<-abs_diff(xb_star, mu1_estim, mu2_estim, sigma1_estim, sigma2_estim, p_estim )
+    T_boot[b]<-abs_diff(xb_star, mu1_estim, mu2_estim, sigma1_estim, sigma2_estim, p_estim )
     
   }
-  return(1/(Bboot+1)*(1 + sum(Tb[(Tb>T0)], na.rm = T )))
+  for (i in 1:length(T_boot)){
+    if (T_boot[i]>T0){
+      s <- s+1
+    }
+  }
+  return(1/(Bboot+1)*(1 + s))
 }
 
 Param_bootstrap(X, Bboot = 1000, mu1_init = mu1_init, mu2_init = mu2_init, sigma1_init = sigma1_init, sigma2_init = sigma2_init, p_init = p_init)

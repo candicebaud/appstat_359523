@@ -305,13 +305,7 @@ I can now reevaluate our parameters and refit the model to see if there were any
 #sigma2_init <- 0.5
 new_X <- unname(unlist(pol[2]))
 
-Y <- numeric(length = length(new_X))
 
-for (i in 1:length(new_X)){
-  if (new_X[i]>0){
-    Y[i] <- log(new_X[i])}}
-
-N = length(new_X)
 
 
 estimate_2 <- function(new_X,p_init, mu1_init, mu2_init, sigma1_init, sigma2_init ){
@@ -321,9 +315,17 @@ k=0
 err = 20000
 old_likelihood <- 0 
 new_likelihood <- 0 
-p_new <- numeric(length=N)
+p_new <- numeric(length(new_X))
 
 param <- rep(1,5)
+
+Y <- numeric(length = length(new_X))
+
+for (i in 1:length(new_X)){
+  if (new_X[i]>0){
+    Y[i] <- log(new_X[i])}}
+
+N = length(new_X)
 
 while(err>eps){
     if (null_param(param) == 0){
@@ -500,7 +502,68 @@ I then generate resamples and estimate the parameters on those new resamples. I 
 
 
 
+```{r parametric bootstrap 2, echo=FALSE}
+T_stat <- function(xn, mu1, mu2, sigma1, sigma2,p){
+  F_N <- ecdf(xn) #the ecdf of our sample
+  n = length(xn) #size of the sample
+  evaluate_diff <- runif(n, min(xn), max(xn)) 
+  sample <- rep(0,n)
+  for (i in 1:n){
+    sample[i] <- bilognorm(evaluate_diff[i], mu1, mu2, sigma1, sigma2, p)
+  }
+  F_star <- ecdf(sample)
+  #difabs <- abs(F_N(grid) - plnormMix(grid, meanlog1 = abs(mu1), sdlog1 = abs(sigma1), meanlog2 = abs(mu2), sdlog2 = abs(sigma2), p.mix = p) )
+  difabs <- abs(F_N(evaluate_diff) - F_star(evaluate_diff) )
+  return(max(difabs))
+}
 
+
+#we use the parameters we estimated before
+mu1_boot <- new_param[2]
+mu2_boot <- new_param[3]
+sigma1_boot <- new_param[4]
+sigma2_boot <- new_param[5]
+p_boot <- new_param[1]
+T_0 <- T_stat(X, mu1_boot, mu2_boot, sigma1_boot, sigma2_boot, p_boot) #ok 
+
+Bootstrap <- function(xn, T_0, mu1, mu2, sigma1, sigma2, p, B){
+  n = length(xn)
+  s <- 0
+  
+  #Bootstrap
+  T_boot <- rep(NA, B)
+  x_resamples <- matrix(NA, nrow = B, ncol = n) #to put our resamples
+  Y <- matrix(NA, nrow = B, ncol = n) 
+  for (i in 1:B) {
+    x_resamples[i,] <- sample(xn, replace = TRUE)
+  }
+  for(i in 1:B){
+    #Y <- numeric(length = length(x_resamples[i,]))
+    for (k in 1:length(x_resamples[i,])){
+    if (x_resamples[i,][k]>0){
+      Y[i] <- log(x_resamples[i,][k])}}
+
+    param = estimate_2(x_resamples[i,], p, mu1, mu2, sigma1, sigma2)
+    mu1_estim <- param[1]
+    mu2_estim <- param[2]
+    sigma1_estim <- param[3]
+    sigma2_estim <- param[4]
+    p_estim <- param[5]
+    T_boot[i] <- T_stat(x_resamples[i,], mu1_estim, mu2_estim, sigma1_estim, sigma2_estim, p_estim) 
+  }
+  for (i in 1:length(T_boot)){
+    if (T_boot[i]>T_0){
+      s <- s+1
+    }
+  }
+  return((1/(B+1))*(1 + s))
+}
+
+b <- numeric(10)
+for(i in 1:10){
+  b[i] <- Bootstrap(X, T_0, mu1, mu2, sigma1, sigma2, p, 100)}
+boxplot(b, main ='P-value of the parametric bootstrap boxplot')
+```
 
 
 ## 6. Discussion and conclusion
