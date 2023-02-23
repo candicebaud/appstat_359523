@@ -36,10 +36,10 @@ The outcome of interest is the variable *retained* which is the fraction of part
 + The endpoint of the bin,
 + The number of particles detected,
 
-Our study aims to simulate snowflake diameters that accurately reflect the data, in order to investigate the aeolian transport of snow. To this end, we are analyzing the variable 'retained,' which represents the fraction of particles belonging to each diameter bin. 
+Our study aims to simulate snowflake diameters that accurately reflect the data, in order to investigate the aeolian transport of snow. To this end, we are analyzing the variable *retained*, which represents the fraction of particles belonging to each diameter bin. 
 
-Figure 1 displays the percentage of particles in each bin, with the distribution plotted according to the bin startpoint. The figure suggests that the data can be described by a mixture of log-normal distributions, with two distinct peaks visible: one at the startpoint of 0.25 and the other at the startpoint of 0.75.
-Figure 1 shows the variable of interest ie the percentage of particles in each bin (the distribution is plotted according to the bin startpoint). The plot I obtain allows us to think of a mixture of log-normal distribution with two visible peaks : one at the startpoint 0.25 and one at the startpoint 0.75 approximately. 
+*Figure 1* displays the percentage of particles in each bin, with the distribution plotted according to the bin startpoint. The figure suggests that the data can be described by a mixture of log-normal distributions, with two distinct peaks visible: one at the startpoint of 0.25 and the other at the startpoint of 0.75.
+
 
 ```{r, fig.align="center", fig.cap="Figure 1: Percentage of particles in each bin"}
 plot(df$startpoint,df$retained...., main ='Percentage of particles in each bin', xlab = 'bin startpoint', ylab ='Frequency(%)', type='l')
@@ -50,9 +50,9 @@ plot(df$startpoint,df$retained...., main ='Percentage of particles in each bin',
 ## 3. Model fitting
 After identifying that our data may be distributed as a mixture of two log-normal distributions, our next step is to evaluate the parameters for the density function:
 
-$f(x) = w_1 \frac{1}{x \sigma_1 \sqrt{2\pi}} e^{-\frac{(\ln x - \mu_1)^2}{2\sigma_1^2}} + w_2 \frac{1}{x \sigma_2 \sqrt{2\pi}} e^{-\frac{(\ln x - \mu_2)^2}{2\sigma_2^2}}$
+$f(x) = p \frac{1}{x \sigma_1 \sqrt{2\pi}} e^{-\frac{(\ln x - \mu_1)^2}{2\sigma_1^2}} + (1-p) \frac{1}{x \sigma_2 \sqrt{2\pi}} e^{-\frac{(\ln x - \mu_2)^2}{2\sigma_2^2}}$
 
-To evaluate the five parameters $w_1$, $\mu_1$, $\sigma_1$, $\mu_2$, and $\sigma_2$, we will use the Expectation-Maximization (EM) algorithm, which is a widely used iterative method for estimating the parameters of statistical models with latent variables.
+To evaluate the five parameters $p$, $\mu_1$, $\sigma_1$, $\mu_2$, and $\sigma_2$, we will use the Expectation-Maximization (EM) algorithm, which is a widely used iterative method for estimating the parameters of statistical models with latent variables.
 
 In the first step of the EM algorithm, we will initialize the parameters and estimate the posterior distribution of the latent variables. In the second step, we will update the parameters using the expected values of the latent variables computed in the first step. We will repeat these two steps until convergence, which typically occurs when the change in the log-likelihood function falls below a certain threshold.
 
@@ -179,7 +179,7 @@ param <- estimate(X = X, p_init = p_init, mu1_init = mu1_init, mu2_init =mu2_ini
 print(c('The obtained parameters are', param))
 ```
 
-With the parameters I obtained, I generate Figure2 which shows the histogram of the fitted model and our data repartition.
+With the parameters I obtained, I generate *Figure2* which shows the histogram of the fitted model and our data repartition.
 
 ```{r, fig.align="center", fig.cap="Figure 2: Fitted distribution histogram"}
 mu1_init <- param[1]
@@ -194,28 +194,20 @@ for (i in 1:52){
 hist(sample, main ='Histogram of the fitted distribution and data density', xlab='bin startpoint', ylab = 'Number of occurences')
 lines(df$startpoint, df$retained....)
 #lines(df$retained...., bilognorm(df$retained...., mu1_init, mu2_init, sigma1_init, sigma2_init, p_init))
+
+#values I obtained and that I want to optimize 
+mu1 <- mu1_init
+mu2 <- mu2_init
+sigma1 <- sigma1_init
+sigma2 <- sigma2_init
+p <- p_init
 ```
 
 Although the histogram I obtained approximately fits the data, it is not fully satisfying because the first peak at 0 is weaker than in the true distribution, and the peak at 0.6 in our true distribution is not accurately modeled. To improve the fit, we will consider using local optimization techniques.
 
-Local optimization seeks to find the values of the parameters that minimize a given objective function, by searching the parameter space around an initial point.
 
 ### Local optimization
-First, I want to see how our estimated density behaves when I slightly modify one or several parameters. I define an $\epsilon = 0.1$ that I will add or subtract to my parameters to see to what extent this changes the model. The different setups are the following 
-
-| Setup |  mean 1       |     mean 2  |    standard deviation 1| standard deviation 2     |    probability  |
-|---------|--------------|------------|---------------|---------------|----------|
-| Setup 1 | $\mu_1$       |     $\mu_2$ |    $\sigma_1$ | $\sigma_2$     |    $p$  |
-| Setup 2 | $\mu_1 + \epsilon$ | $\mu_2+\epsilon$ | $\sigma_1+\epsilon$ | $\sigma_2+\epsilon$ | $p+2\epsilon$ |
-| Setup 3 | $\mu_1 - \epsilon$ | $\mu_2-\epsilon$ | $\sigma_1-\epsilon$ | $\sigma_2-\epsilon$ | $p+2\epsilon$ |
-| Setup 4 | $\mu_1 - \epsilon$ | $\mu_2+\epsilon$ | $\sigma_1+\epsilon$ | $\sigma_2+\epsilon$ | $p+2\epsilon$ |
-| Setup 5 | $\mu_1 + \epsilon$ | $\mu_2-\epsilon$ | $\sigma_1$     | $\sigma_2$     | $p+2\epsilon$ |
-| Setup 6 | $\mu_1 - \epsilon$ | $\mu_2+\epsilon$ | $\sigma_1$     | $\sigma_2$     |$p+\epsilon$ |
-
-where $\mu_1$, $\sigma_1$, $\mu_2$, $\sigma_2$ and $p$ are the parameters estimated with the EM algorithm. In other words, setup number one replicates uses the parameters from our previous estimation and is used to be compared to the different five other setups. 
-
-The results are given by Figure3. It appears that setup 4 and 2 are improving the model even though the first part of the histogram is still not well modeled. 
-In both models, we have chosen a mu2, a sigma1, a sigma2 and p greater than the one obtained with the EM-algorithm. 
+Local optimization seeks to find the values of the parameters that minimize a given objective function, by searching the parameter space around an initial point.
 
 ```{r, null param, echo=FALSE, include=FALSE}
 null_param <- function(param){
@@ -231,73 +223,21 @@ null_param <- function(param){
 ```
 
 
-```{r, fig.align="center", fig.cap="Figure 3: Local optimization"}
-#values I obtained and that I want to optimize 
-mu1 <- mu1_init
-mu2 <- mu2_init
-sigma1 <- sigma1_init
-sigma2 <- sigma2_init
-p <- p_init
-
-#I define epsilon from which I will make our values change to see which model is better fitting our data
-epsilon = 0.1
-
-par(mfrow = c(2,3))
-
-#graph1
-sample <- numeric(length = 52)
-for (i in 1:52){
-  sample[i] <- bilognorm(df$retained....[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init) }
-hist(sample, main='Distribution with setup 1')
-lines(df$startpoint, df$retained....)
-
-#graph2
-sample <- numeric(length = 52)
-for (i in 1:52){
-  sample[i] <- bilognorm(df$retained....[i], mu1_init+epsilon, mu2_init+epsilon, sigma1_init+epsilon, sigma2_init+epsilon, p_init+2*epsilon) }
-hist(sample, main='Distribution with setup 2')
-lines(df$startpoint, df$retained....)
-
-#graph3
-sample <- numeric(length = 52)
-for (i in 1:52){
-  sample[i] <- bilognorm(df$retained....[i], mu1_init-epsilon, mu2_init-epsilon, sigma1_init-epsilon, sigma2_init-epsilon, p_init+2*epsilon) }
-hist(sample, main='Distribution with setup 3')
-lines(df$startpoint, df$retained....)
-
-#graph4
-sample <- numeric(length = 52)
-for (i in 1:52){
-  sample[i] <- bilognorm(df$retained....[i], mu1_init-epsilon, mu2_init+epsilon, sigma1_init+epsilon, sigma2_init+epsilon, p_init+2*epsilon) }
-hist(sample, main='Distribution with setup 4')
-lines(df$startpoint, df$retained....)
-
-#graph5
-sample <- numeric(length = 52)
-for (i in 1:52){
-  sample[i] <- bilognorm(df$retained....[i], mu1_init+epsilon, mu2_init-epsilon, sigma1_init, sigma2_init, p_init+2*epsilon) }
-hist(sample, main='Distribution with setup 5')
-lines(df$startpoint, df$retained....)
-
-#graph6
-sample <- numeric(length = 52)
-for (i in 1:52){
-  sample[i] <- bilognorm(df$retained....[i], mu1_init-epsilon, mu2_init+epsilon, sigma1_init, sigma2_init, p_init+epsilon) }
-hist(sample, main = 'Distribution with setup 6')
-lines(df$startpoint, df$retained....)
-```
-
-Now that I have been able to see the behaviour of my distribution when I change the parameters, I do some kernel density estimation. Kernel density estimation is a non-parametric technique used to estimate the probability density function of a random variable based on a sample of data. The idea behind kernel density estimation is to place a "kernel" function at each data point, and then sum the kernel functions to create a smooth estimate of the density function.
-
-Kernel functions are typically symmetric, non-negative functions with zero mean, such as the Gaussian kernel or the Epanechnikov kernel. We then estimate the density function as follows:
+I do in this section some kernel density estimation. Kernel density estimation is a non-parametric technique used to estimate the probability density function of a random variable based on a sample of data. The idea behind kernel density estimation is to place a "kernel" function at each data point, and then sum the kernel functions to create a smooth estimate of the density function.
+I thus estimate the density function as follows
 
 $f(x) = \frac{1}{n h} \sum_{i=1}^n K\left(\frac{x - X_i}{h}\right)$
 
 where h is a bandwidth parameter that controls the width of the kernel function and determines the degree of smoothing. A smaller bandwidth results in a more variable estimate, while a larger bandwidth results in a smoother estimate that may oversmooth the data.
 
-Figure 4 represents in red our data distribution and in black the one estimated with the kernel density estimation. I chose the normal kernel with the density $$f(x) = \frac{1}{\sigma \sqrt{2 \pi}} e^{-\frac{(x-\mu)^2}{2\sigma^2}}$$ 
+Kernel functions are typically symmetric, non-negative functions with zero mean, such as the Gaussian kernel that I use here and that has the following density
 
-```{r fig.align="center", fig.cap="Figure 4: Kernel density estimation"}
+$$f(x) = \frac{1}{\sigma \sqrt{2 \pi}} e^{-\frac{(x-\mu)^2}{2\sigma^2}}$$ 
+
+
+*Figure3* represents in red our data distribution and in black the one estimated with the kernel density estimation.
+
+```{r fig.align="center", fig.cap="Figure 3: Kernel density estimation"}
 library('KernSmooth')
 
 plot(df$startpoint, df$retained...., type ='l', col = 'red')
@@ -307,7 +247,7 @@ lines(pol)
 
 ```
 
-After re-evaluating the parameters, we refit the model to see if there were any improvements. Figure 5 shows the results, which indicate a slight improvement in the histogram thanks to the use of kernel density estimation. Specifically, we see that the peak at 0.6 is better estimated, suggesting that our modeling approach is capturing more of the underlying distribution. However, we note that the peak at 0 is still over-estimated, which indicates that further optimization may be necessary to obtain an accurate model.
+After re-evaluating the parameters, I refit the model to see if there were any improvements. *Figure4* shows the results, which indicate a slight improvement in the histogram thanks to the use of kernel density estimation. Specifically, I see that the peak at 0.6 is better estimated, suggesting that our modeling approach is capturing more of the underlying distribution. However, I note that the peak at 0 is still over-estimated, which indicates that further optimization may be necessary to obtain an accurate model.
 
 ```{r optimization 3, echo=FALSE}
 #p_init <- 0.5
@@ -404,7 +344,7 @@ print(c('The obtained values are', new_param))
 ```
 
 
-```{r, fig.align="center", fig.cap="Figure 5: Kernel density estimation results"}
+```{r, fig.align="center", fig.cap="Figure 4: Kernel density estimation results"}
 par(mfrow=c(1,2))
 sample <- numeric(length = 52)
 for (i in 1:52){
@@ -482,9 +422,9 @@ posterior <- posterior[seq(1, nrow(posterior), thin),]
 ```
 
 
-Figure 6 allows us to see the new fitted distribution which doesn't appear better than the previous one. I discuss those results in the following section.
+*Figure6* allows us to see the new fitted distribution which doesn't appear better than the previous one. I discuss those results in the following section.
 
-```{r, fig.align="center", fig.cap="Figure 6: MCMC results"}
+```{r, fig.align="center", fig.cap="Figure 5: MCMC results"}
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], prop[1], prop[2], prop[3], prop[4], prop[5]) }
@@ -494,13 +434,81 @@ lines(df$startpoint, df$retained....)
 
 
 ## 4. Results analysis
+### Stability of the EM algorithm solutions
+To evaluate the stability of my EM-algorithm solutions, I want to see how our estimated density behaves when I slightly modify one or several parameters. I define an $\epsilon = 0.1$ that I add or subtract to my parameters to see to what extent this changes the model. The different setups are the following 
+
+| Setup |  mean 1       |     mean 2  |    standard deviation 1| standard deviation 2     |    probability  |
+|---------|--------------|------------|---------------|---------------|----------|
+| Setup 1 | $\mu_1$       |     $\mu_2$ |    $\sigma_1$ | $\sigma_2$     |    $p$  |
+| Setup 2 | $\mu_1 + \epsilon$ | $\mu_2+\epsilon$ | $\sigma_1+\epsilon$ | $\sigma_2+\epsilon$ | $p+2\epsilon$ |
+| Setup 3 | $\mu_1 - \epsilon$ | $\mu_2-\epsilon$ | $\sigma_1-\epsilon$ | $\sigma_2-\epsilon$ | $p+2\epsilon$ |
+| Setup 4 | $\mu_1 - \epsilon$ | $\mu_2+\epsilon$ | $\sigma_1+\epsilon$ | $\sigma_2+\epsilon$ | $p+2\epsilon$ |
+| Setup 5 | $\mu_1 + \epsilon$ | $\mu_2-\epsilon$ | $\sigma_1$     | $\sigma_2$     | $p+2\epsilon$ |
+| Setup 6 | $\mu_1 - \epsilon$ | $\mu_2+\epsilon$ | $\sigma_1$     | $\sigma_2$     |$p+\epsilon$ |
+
+where $\mu_1$, $\sigma_1$, $\mu_2$, $\sigma_2$ and $p$ are the parameters estimated with the EM algorithm. In other words, setup number one uses the parameters from the EM algorithm is used to be compared to the different five other setups. 
+
+The results are given by *Figure6*. It appears that the obtained density varies a bit with those slight changes. Setup 3 doesn't fit well the data but also corresponds to a lot of parameters that have been changed. Setup 4 and 2 seem to improve the model even though the first part of the histogram is still over-represented in the model. 
+
+
+```{r, fig.align="center", fig.cap="Figure 6: EM algorithm stability"}
+#I define epsilon from which I will make our values change to see which model is better fitting our data
+epsilon = 0.1
+
+par(mfrow = c(2,3))
+
+#graph1
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init) }
+hist(sample, main='Distribution with setup 1')
+lines(df$startpoint, df$retained....)
+
+#graph2
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init+epsilon, mu2_init+epsilon, sigma1_init+epsilon, sigma2_init+epsilon, p_init+2*epsilon) }
+hist(sample, main='Distribution with setup 2')
+lines(df$startpoint, df$retained....)
+
+#graph3
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init-epsilon, mu2_init-epsilon, sigma1_init-epsilon, sigma2_init-epsilon, p_init+2*epsilon) }
+hist(sample, main='Distribution with setup 3')
+lines(df$startpoint, df$retained....)
+
+#graph4
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init-epsilon, mu2_init+epsilon, sigma1_init+epsilon, sigma2_init+epsilon, p_init+2*epsilon) }
+hist(sample, main='Distribution with setup 4')
+lines(df$startpoint, df$retained....)
+
+#graph5
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init+epsilon, mu2_init-epsilon, sigma1_init, sigma2_init, p_init+2*epsilon) }
+hist(sample, main='Distribution with setup 5')
+lines(df$startpoint, df$retained....)
+
+#graph6
+sample <- numeric(length = 52)
+for (i in 1:52){
+  sample[i] <- bilognorm(df$retained....[i], mu1_init-epsilon, mu2_init+epsilon, sigma1_init, sigma2_init, p_init+epsilon) }
+hist(sample, main = 'Distribution with setup 6')
+lines(df$startpoint, df$retained....)
+```
+
+
+
 ### Convergence of the MCMC 
 
-In Figure 7, the first five plots show the values of the parameters after removing the burn-in period (the first 1000 values in this case). If the MCMC algorithm is working well, we would expect to see convergence of the parameter values over time, indicating that the chain has explored the parameter space and settled into a stable distribution. However, for all of the parameters, we do not see clear convergence over the course of the chain.
+In *Figure7*, the first five plots show the values of the parameters after removing the burn-in period (the first 1000 values in this case). If the MCMC algorithm is working well, we would expect to see convergence of the parameter values over time, indicating that the chain has explored the parameter space and settled into a stable distribution. However, for all of the parameters, we do not see clear convergence over the course of the chain.
 
-The last plot in Figure 7 shows the acceptance probability of the proposals, with the mean value shown in red. Ideally, the acceptance probability should be in the range of 10% to 50%, indicating that the proposals are exploring the space effectively. However, in our case, the acceptance probability is quite high, indicating that the chain is not exploring the space efficiently.
+The last plot in *Figure7* shows the acceptance probability of the proposals, with the mean value shown in red. Ideally, the acceptance probability should be in the range of 10% to 50%, indicating that the proposals are exploring the space effectively. However, in our case, the acceptance probability is quite high, indicating that the chain is not exploring the space efficiently.
 
-These issues with the MCMC procedure likely explain why our parameter estimates do not appear to have improved in Figure 6. We need to investigate further to determine the cause of these problems and identify strategies for improving the performance of the MCMC algorithm.
+These issues with the MCMC procedure likely explains why our parameter estimates do not appear to have improved in *Figure6*. We need to investigate further to determine the cause of these problems and identify strategies for improving the performance of the MCMC algorithm.
 
 
 ```{r fig.align="center", fig.cap="Figure 7: MCMC convergence"}
