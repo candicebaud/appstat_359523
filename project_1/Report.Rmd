@@ -19,7 +19,7 @@ lapply(c("dplyr","chron","ggplot2","tidyr","questionr","survival","forcats","tid
 
 Sys.setlocale("LC_TIME", "English")
 df <- read.csv("1_snow_particles.csv")
-set.seed(435)
+set.seed(435) #set the seed for reproducible results
 ```
 
 
@@ -66,6 +66,7 @@ $w_1 = 0.5$, $\mu_1 = 0.25$, $\sigma_1 = 0.75$, $\mu_2 = 0.25$, $\sigma_2 = 0.5$
 I define $\epsilon = 0.001$ the threshold such that I stop the algorithm when the difference in the log-likelihoods is under $\epsilon$.
 
 ```{r densities, echo=FALSE}
+#lognormal generates the lognormal density function
 lognormal <- function(x, mu1, sigma1){
   if (x>0){
     return((1/x)*dnorm(log(x), mean=mu1, sd=sigma1))}
@@ -74,7 +75,7 @@ lognormal <- function(x, mu1, sigma1){
   }
 }
 
-
+#bilognorm generates the mixture of two lognormal density function
 bilognorm <- function(x, mu1, mu2, sigma1, sigma2, p) {
     return(p*lognormal(x,mu1,sigma1)+(1-p)*lognormal(x,mu2,sigma2))
 }
@@ -92,7 +93,7 @@ test_0 <- function(xn){
 
 ```
 
-```{r bi log normal EM algo, echo=FALSE}
+```{r mixture log normal EM algo, echo=FALSE}
 #Initialisation 
 p_init <- 0.5
 mu1_init <- 0.25
@@ -100,6 +101,7 @@ mu2_init <- 0.75
 sigma1_init <- 0.25
 sigma2_init <- 0.5
 X <- df$retained....
+
 
 estimate <- function(X, p_init, mu1_init, mu2_init, sigma1_init, sigma2_init){
 
@@ -114,7 +116,7 @@ N = length(X)
 #criterion : epsilon
 epsilon = 0.001
 k=0
-err = 20000
+err = 20000 #error to which we will compare epsilon
 old_likelihood <- 0 
 new_likelihood <- 0 
 p_new <- numeric(length=N)
@@ -131,6 +133,7 @@ old_likelihood <- log(old_likelihood)
 
 #if (test_0(f_theta) >0 ){
   #gamma <- 0}else {gamma <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init)/f_theta}
+
 f_theta <- numeric(length(X))
 gamma<- numeric(length(X))
 for(i in 1:length(X)){
@@ -182,12 +185,14 @@ print(c('The obtained parameters are', param))
 With the parameters I obtained, I generate *Figure2* which shows the histogram of the fitted model and our data repartition.
 
 ```{r, fig.align="center", fig.cap="Figure 2: Fitted distribution histogram"}
+#the new parameters(estimated with EM)
 mu1_init <- param[1]
 mu2_init <- param[2]
 sigma1_init <- param[3]
 sigma2_init <- param[4]
 p_init <- param[5]
 
+#to plot
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init) }
@@ -210,6 +215,7 @@ Although the histogram I obtained approximately fits the data, it is not fully s
 Local optimization seeks to find the values of the parameters that minimize a given objective function, by searching the parameter space around an initial point.
 
 ```{r, null param, echo=FALSE, include=FALSE}
+#function to test the nullity of parameters
 null_param <- function(param){
   res <-0
   for(i in 1:length(param)){
@@ -250,11 +256,7 @@ lines(pol)
 After re-evaluating the parameters, I refit the model to see if there were any improvements. *Figure4* shows the results, which indicate a slight improvement in the histogram thanks to the use of kernel density estimation. Specifically, I see that the peak at 0.6 is better estimated, suggesting that our modeling approach is capturing more of the underlying distribution. However, I note that the peak at 0 is still over-estimated, which indicates that further optimization may be necessary to obtain an accurate model.
 
 ```{r optimization 3, echo=FALSE}
-#p_init <- 0.5
-#mu1_init <- 0.25
-#mu2_init <- 0.75
-#sigma1_init <- 0.25
-#sigma2_init <- 0.5
+#new_X is the kernel density estimation density
 new_X <- unname(unlist(pol[2]))
 
 estimate_2 <- function(new_X, p_init, mu1_init, mu2_init, sigma1_init, sigma2_init ){
@@ -291,6 +293,7 @@ old_likelihood <- log(old_likelihood)
 
 #if (test_0(f_theta) >0 ){
   #gamma <- 0}else {gamma <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init)/f_theta}
+
 f_theta <- numeric(length(new_X))
 gamma<- numeric(length(new_X))
 for(i in 1:length(new_X)){
@@ -330,6 +333,7 @@ sigma2_init <- sigma2_new
 p_init <- p_new
 
 param <- c(mu1_init,mu2_init,sigma1_init,sigma2_init,p_init)
+
 #I put the likelihood at 0 to be able to compute them again 
 old_likelihood <- 0 
 new_likelihood <- 0 
@@ -402,6 +406,7 @@ for (i in 2:n_iter_max) {
   p_prop = 1
   p_curr = 1 # I have a gaussian proposal that is symmetric so the ratio of p_prop/p_curr is 1 (I set both at 1 to have the ratio equal to 1) 
   #p_curr <- sum(dnorm(X, mean = chain[i-1,], sd = prop_sd))
+  
   accept_prob <- likelihood_mixed(X, prop[1], prop[2], prop[3], prop[4], prop[5])*p_prop/(likelihood_mixed(X, chain[i-1,][1], chain[i-1,][2], chain[i-1,][3], chain[i-1,][4], chain[i-1,][5])*p_curr)
   if(accept_prob>=1){
     accept_prob <- 1
