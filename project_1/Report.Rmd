@@ -93,14 +93,29 @@ test_0 <- function(xn){
 
 ```
 
-```{r mixture log normal EM algo, echo=FALSE}
+
+```{r EM algo jittering, echo=FALSE}
+#simulate points 
+n_points <- df$particles.detected[1]/5000 #total of points I will take
+X <- c()
+int_size <- numeric(length(df$retained....)) #number of points in each interval
+for (i in 1:length(df$retained....)){
+  int_size[i]<- df$retained....[i]*n_points
+}
+for (i in 1:length(df$retained....)){
+  r <- runif(int_size[i], min=df$startpoint[i], max = df$endpoint[i])
+  X <- append(X, r)
+}
+
+#hist(X)
+
 #Initialisation 
 p_init <- 0.5
 mu1_init <- 0.25
 mu2_init <- 0.75
 sigma1_init <- 0.25
 sigma2_init <- 0.5
-X <- df$retained....
+#X <- df$retained....
 
 
 estimate <- function(X, p_init, mu1_init, mu2_init, sigma1_init, sigma2_init){
@@ -182,9 +197,10 @@ param <- estimate(X = X, p_init = p_init, mu1_init = mu1_init, mu2_init =mu2_ini
 print(c('The obtained parameters are', param))
 ```
 
-With the parameters I obtained, I generate *Figure2* which shows the histogram of the fitted model and our data repartition.
 
-```{r, fig.align="center", fig.cap="Figure 2: Fitted distribution histogram"}
+With the parameters I obtained, I generate *Figure2* which shows the density of the fitted model and our data.
+
+```{r, fig.align="center", fig.cap="Figure 2: Fitted distribution"}
 #the new parameters(estimated with EM)
 mu1_init <- param[1]
 mu2_init <- param[2]
@@ -193,12 +209,26 @@ sigma2_init <- param[4]
 p_init <- param[5]
 
 #to plot
-sample <- numeric(length = 52)
-for (i in 1:52){
-  sample[i] <- bilognorm(df$retained....[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init) }
-hist(sample, main ='Histogram of the fitted distribution and data density', xlab='bin startpoint', ylab = 'Number of occurences')
-lines(df$startpoint, df$retained....)
+area = AUC(x=df$startpoint, y=df$retained....)
+#sample <- numeric(length = 52)
+#for (i in 1:52){
+  #sample[i] <- bilognorm(df$retained....[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init) }
+#hist(sample, main ='Histogram of the fitted distribution and data density', xlab='bin startpoint', ylab = 'Number of occurences')
+#lines(df$startpoint, df$retained....)
 #lines(df$retained...., bilognorm(df$retained...., mu1_init, mu2_init, sigma1_init, sigma2_init, p_init))
+
+to_plot_x <- seq(0, 1.5, by=0.01)
+to_plot_x <- append(to_plot_x, seq(1.5, 3, by=0.5))
+to_plot_y <- numeric(length(to_plot_x))
+for (i in 1:length(to_plot_x)){
+ to_plot_y[i] <- bilognorm(to_plot_x[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)}
+
+area_y = AUC(to_plot_x, to_plot_y)
+
+plot(df$startpoint, df$retained...., col = 'red', type='l', main ='Fitted distribution and real data', xlab ='Bin startpoint', ylab='Number of particles')
+lines(to_plot_x, to_plot_y*area/area_y, type='l')
+
+
 
 #values I obtained and that I want to optimize 
 mu1 <- mu1_init
@@ -206,9 +236,10 @@ mu2 <- mu2_init
 sigma1 <- sigma1_init
 sigma2 <- sigma2_init
 p <- p_init
+
 ```
 
-Although the histogram I obtained approximately fits the data, it is not fully satisfying because the first peak at 0 is weaker than in the true distribution, and the peak at 0.6 in our true distribution is not accurately modeled. To improve the fit, we will consider using local optimization techniques.
+Although the density I obtained approximately fits the data, it is not fully satisfying because the peak at 0.7 is weaker than in the true distribution, thus is not accurately modeled. To improve the fit, we will consider using local optimization techniques.
 
 
 ### Local optimization
@@ -244,7 +275,7 @@ $$f(x) = \frac{1}{\sigma \sqrt{2 \pi}} e^{-\frac{(x-\mu)^2}{2\sigma^2}}$$
 *Figure3* represents in red our data distribution and in black the one estimated with the kernel density estimation.
 
 ```{r fig.align="center", fig.cap="Figure 3: Kernel density estimation"}
-library('KernSmooth')
+suppressWarnings(library('KernSmooth'))
 
 plot(df$startpoint, df$retained...., type ='l', col = 'red')
 pol <- locpoly(df$startpoint, df$retained...., drv = 0, degree =2, kernel = "normal", 
@@ -253,96 +284,13 @@ lines(pol)
 
 ```
 
-After re-evaluating the parameters, I refit the model to see if there were any improvements. *Figure4* shows the results, which indicate a slight improvement in the histogram thanks to the use of kernel density estimation. Specifically, I see that the peak at 0.6 is better estimated, suggesting that our modeling approach is capturing more of the underlying distribution. However, I note that the peak at 0 is still over-estimated, which indicates that further optimization may be necessary to obtain an accurate model.
+After re-evaluating the parameters, I refit the model to see if there were any improvements. *Figure4* shows the results with an histogram. There is a true improvement in our estimation thanks to the use of kernel density estimation. Specifically, one can see that the peak at 0.6 is better estimated, suggesting that our modeling approach is capturing more of the underlying distribution. However, I note that the peak at 0 is over-estimated, which indicates that further optimization may be necessary to obtain an accurate model.
 
 ```{r optimization 3, echo=FALSE}
 #new_X is the kernel density estimation density
 new_X <- unname(unlist(pol[2]))
 
-estimate_2 <- function(new_X, p_init, mu1_init, mu2_init, sigma1_init, sigma2_init ){
-Y <- numeric(length = length(new_X))
-
-for (i in 1:length(new_X)){
-  if (new_X[i]>0){
-    Y[i] <- log(new_X[i])}}
-
-N = length(new_X)
-
-#criterion : epsilon 
-epsilon = 0.001
-k=0
-err = 20000
-old_likelihood <- 0 
-new_likelihood <- 0 
-p_new <- numeric(length=N)
-param <- c(1,1,1,1,1)
-
-while(null_param(param)==0){
-if(err>epsilon){
-  #log likelihood computation
-for (i in 1:length(new_X)){
-  if(new_X[i]<0){
-    new_X[i] = 0}
-  a <- bilognorm(new_X[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)
-  if (is.na(a)==FALSE){
-    old_likelihood <- old_likelihood + a}}
-old_likelihood <- log(old_likelihood)
-
-#new parameters
-#f_theta <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init) + (1-p_init)*dnorm(Y, mean=mu2_init, sd = sigma2_init)
-
-#if (test_0(f_theta) >0 ){
-  #gamma <- 0}else {gamma <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init)/f_theta}
-
-f_theta <- numeric(length(new_X))
-gamma<- numeric(length(new_X))
-for(i in 1:length(new_X)){
-  f_theta[i] <- bilognorm(new_X[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)
- if(f_theta[i]>0){
-gamma[i] <- p_init*lognormal(new_X[i], mu1_init, sigma1_init)/f_theta[i]}else{gamma[i] =  1}}
-
-s <- sum(gamma)
-p_new <- s/N
-mu_1_new <- sum(Y*gamma)/s
-mu_2_new <- sum(Y*(1-gamma))/(N-s)
-s1 <- sum(gamma*(Y - mu1_init)**2)
-s2 <- sum((1-gamma)*(Y - mu2_init)**2)
-sigma1_new <- sqrt(s1/(N-s))
-sigma2_new <- sqrt(s2/(N-s))
-
-#new log likelihood computation
-for (i in 1:length(X)){
-  if(new_X[i]<0){
-    new_X[i] = abs(new_X[i])}
-  a <- bilognorm(new_X[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)
-  if (is.na(a)==FALSE){
-    new_likelihood <- new_likelihood + a}}
-new_likelihood <- log(new_likelihood)
-
-#k represents the number of iterations before convergence
-k = k+1
-
-#err is the error 
-err = abs(new_likelihood - old_likelihood)
-
-#new parameters
-mu1_init <- mu_1_new
-mu2_init <- mu_2_new
-sigma1_init <- sigma1_new
-sigma2_init <- sigma2_new
-p_init <- p_new
-
-param <- c(mu1_init,mu2_init,sigma1_init,sigma2_init,p_init)
-
-#I put the likelihood at 0 to be able to compute them again 
-old_likelihood <- 0 
-new_likelihood <- 0 
-
-}}
-  return(param)
-}
-
-new_param <- estimate_2(new_X, p_init, mu1_init, mu2_init, sigma1_init, sigma2_init)
+new_param <- estimate(new_X, p_init, mu1_init, mu2_init, sigma1_init, sigma2_init)
 
 print(c('The obtained values are', new_param))
 ```
@@ -353,14 +301,17 @@ par(mfrow=c(1,2))
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], new_param[2], new_param[3], new_param[4], new_param[5], new_param[1]) }
-hist(sample, main='Fitted model with KDE')
-lines(df$startpoint, df$retained....)
+hist(sample, main='Fitted model with KDE', freq=F) #in %
+lines(df$startpoint, df$retained..../area, col='red')
+
+#df%>%group_by(startpoint, retained....)%>% ggplot(aes(x=startpoint, y=retained....)) + geom_bar(stat='identity')
 
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], mu1, mu2, sigma1, sigma2, p) }
-hist(sample, main='Fitted model with EM algorithm')
-lines(df$startpoint, df$retained....)
+hist(sample, main='Fitted model with EM algorithm', freq=F)
+lines(df$startpoint, df$retained..../area, col='red')
+
 ```
 
 
@@ -377,7 +328,7 @@ likelihood_mixed <- function(xn, mu1, mu2, sigma1, sigma2, p){
   return(old_likelihood)}}
 
 
-n_iter_max <- 11000
+n_iter_max <- 6000
 burn_in <- 1000 
 thin <- 2
 
@@ -407,7 +358,7 @@ for (i in 2:n_iter_max) {
   p_curr = 1 # I have a gaussian proposal that is symmetric so the ratio of p_prop/p_curr is 1 (I set both at 1 to have the ratio equal to 1) 
   #p_curr <- sum(dnorm(X, mean = chain[i-1,], sd = prop_sd))
   
-  accept_prob <- likelihood_mixed(X, prop[1], prop[2], prop[3], prop[4], prop[5])*p_prop/(likelihood_mixed(X, chain[i-1,][1], chain[i-1,][2], chain[i-1,][3], chain[i-1,][4], chain[i-1,][5])*p_curr)
+  accept_prob <- likelihood_mixed(new_X, prop[1], prop[2], prop[3], prop[4], prop[5])*p_prop/(likelihood_mixed(new_X, chain[i-1,][1], chain[i-1,][2], chain[i-1,][3], chain[i-1,][4], chain[i-1,][5])*p_curr)
   if(accept_prob>=1){
     accept_prob <- 1
   }
@@ -424,17 +375,34 @@ for (i in 2:n_iter_max) {
 posterior <- chain[-(1:burn_in),]
 posterior <- posterior[seq(1, nrow(posterior), thin),]
 
+#new parameters
+#mu1<- posterior[,1][length(posterior[,1])]
+#mu2 <- posterior[,2][length(posterior[,2])]
+#sigma1 <- posterior[,3][length(posterior[,3])]
+#sigma2 <- posterior[,4][length(posterior[,4])]
+#p <- posterior[,5][length(posterior[,5])]
+
 ```
 
 
-*Figure6* allows us to see the new fitted distribution which doesn't appear better than the previous one. I discuss those results in the following section.
+*Figure6* allows us to see the new fitted distribution which doesn't appear better than the previous one. Indeed, the simulated values are only between 0 and 0.3 whereas our true values are between 0 and 3. The generated histogram doesn't represent the true distribution accurately at all since it doesn't even generate values where our data seems to have a peak. I will discuss those results deeper in the following section.
 
 ```{r, fig.align="center", fig.cap="Figure 5: MCMC results"}
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], prop[1], prop[2], prop[3], prop[4], prop[5]) }
-hist(sample, main='Fitted model with a MCMC method', xlab = 'sample values', ylab ='number of occurences')
-lines(df$startpoint, df$retained....)
+hist(sample, main='Fitted model with a MCMC method', xlab = 'sample values', ylab ='number of occurences', freq=F)
+lines(df$startpoint, df$retained..../area, col='red')
+
+
+#to_plot_x <- seq(0, 3, by=0.01)
+#to_plot_y <- numeric(length(to_plot_x))
+#for (i in 1:length(to_plot_x)){
+  #to_plot_y[i]<- bilognorm(to_plot_x[i],mu1, mu2, sigma1, sigma2, p) }
+#plot(df$startpoint,df$retained....)
+#lines(to_plot_x, to_plot_y, type = 'l')
+#plot(to_plot_x,to_plot_y*10)
+#lines(df$startpoint,df$retained....)
 ``` 
 
 
@@ -453,7 +421,7 @@ To evaluate the stability of my EM-algorithm solutions, I want to see how our es
 
 where $\mu_1$, $\sigma_1$, $\mu_2$, $\sigma_2$ and $p$ are the parameters estimated with the EM algorithm. In other words, setup number one uses the parameters from the EM algorithm is used to be compared to the different five other setups. 
 
-The results are given by *Figure6*. It appears that the obtained density varies a bit with those slight changes. Setup 3 doesn't fit well the data but also corresponds to a lot of parameters that have been changed. Setup 4 and 2 seem to improve the model even though the first part of the histogram is still over-represented in the model. 
+The results are given by *Figure6*. It appears that the obtained density varies with those slight changes. Setup 3 doesn't fit well the data but also corresponds to a lot of parameters that have been changed. Setup 4 and 2 seem to improve the model even though the first part of the histogram is still over-represented in the model. 
 
 
 ```{r, fig.align="center", fig.cap="Figure 6: EM algorithm stability"}
@@ -466,43 +434,43 @@ par(mfrow = c(2,3))
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init) }
-hist(sample, main='Distribution with setup 1')
-lines(df$startpoint, df$retained....)
+hist(sample, main='Distribution with setup 1', freq=F)
+lines(df$startpoint, df$retained..../area, col='red')
 
 #graph2
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], mu1_init+epsilon, mu2_init+epsilon, sigma1_init+epsilon, sigma2_init+epsilon, p_init+2*epsilon) }
-hist(sample, main='Distribution with setup 2')
-lines(df$startpoint, df$retained....)
+hist(sample, main='Distribution with setup 2', freq=F)
+lines(df$startpoint, df$retained..../area, col='red')
 
 #graph3
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], mu1_init-epsilon, mu2_init-epsilon, sigma1_init-epsilon, sigma2_init-epsilon, p_init+2*epsilon) }
-hist(sample, main='Distribution with setup 3')
-lines(df$startpoint, df$retained....)
+hist(sample, main='Distribution with setup 3', freq=F)
+lines(df$startpoint, df$retained..../area, col='red')
 
 #graph4
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], mu1_init-epsilon, mu2_init+epsilon, sigma1_init+epsilon, sigma2_init+epsilon, p_init+2*epsilon) }
-hist(sample, main='Distribution with setup 4')
-lines(df$startpoint, df$retained....)
+hist(sample, main='Distribution with setup 4', freq=F)
+lines(df$startpoint, df$retained..../area, col='red')
 
 #graph5
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], mu1_init+epsilon, mu2_init-epsilon, sigma1_init, sigma2_init, p_init+2*epsilon) }
-hist(sample, main='Distribution with setup 5')
-lines(df$startpoint, df$retained....)
+hist(sample, main='Distribution with setup 5', freq=F)
+lines(df$startpoint, df$retained..../area, col='red')
 
 #graph6
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], mu1_init-epsilon, mu2_init+epsilon, sigma1_init, sigma2_init, p_init+epsilon) }
-hist(sample, main = 'Distribution with setup 6')
-lines(df$startpoint, df$retained....)
+hist(sample, main = 'Distribution with setup 6', freq=F)
+lines(df$startpoint, df$retained..../area, col='red')
 ```
 
 
@@ -595,14 +563,14 @@ Bootstrap <- function(xn, T_0, mu1, mu2, sigma1, sigma2, p, B){
   return((1/(B+1))*(1 + s))
 }
 
-Bootstrap(X, T_0, mu1, mu2, sigma1, sigma2, p, 100)
+Bootstrap(new_X, T_0, mu1, mu2, sigma1, sigma2, p, 100)
 #b <- numeric(5)
 #for(i in 1:5){
   #b[i] <- Bootstrap(X, T_0, mu1, mu2, sigma1, sigma2, p, 50)}
 #boxplot(b, main ='P-value of the parametric bootstrap boxplot')
 ```
 
-The obtained p-value is of 0.56 which is big enough to consider that we don't reject the null hypothesis. In other words, we conclude that the hypothesis that our data comes from a mixture of two lognormal distributions is not rejected.
+The obtained p-value is of 1 which is big enough to consider that we don't reject the null hypothesis. In other words, we conclude that the hypothesis that our data comes from a mixture of two lognormal distributions is not rejected.
 
 ## 6. Discussion and conclusion
 Throughout this project, I have focused on the mixture of two lognormal distributions as it fits the data well, and our parametric bootstrap algorithm did not reject it. Estimating the parameters of this distribution is challenging, as there is no closed-form formula for the maximum likelihood estimate. I have used a combination of the EM algorithm and local optimization to estimate the parameters, which resulted in a slightly improved fit of the model. The initial parameters for the EM algorithm were chosen based on descriptive statistics and provided a satisfactory starting point for the optimization.
