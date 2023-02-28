@@ -26,7 +26,7 @@ set.seed(435) #set the seed for reproducible results
 ## 1. Introduction
 Snow particle size is a critical feature used to model and understand the dynamics of avalanches, particularly large powder-snow avalanches that behave like fast-moving clouds down mountainsides [1]. The sedimentation velocity, which is highly influenced by particle size, plays a significant role in the dynamic of turbulent dilute suspension avalanches [1]. Accurate modeling of sedimentation velocity is crucial, as errors in size estimation can lead to 10x greater errors in velocity estimation.
 
-In this report, I analyze a dataset of snow particle sizes obtained from a PhD student at the Laboratory of Cryospheric Sciences at EPFL (Ecole Polytechnique Fédérale de Lausanne). The dataset includes the number of particles in each size category, which is the most important feature for our analysis. I begin by performing exploratory data analysis to gain insights into the dataset and create a preliminary model. I then enhance this model using both local optimization and Bayesian methods. Finally, I assess the model's quality by performing parametric bootstrap analysis.
+In this report, I analyze a dataset of snow particle sizes obtained from a PhD student at the Laboratory of Cryospheric Sciences at EPFL. The dataset includes the number of particles in each size category, which is the most important feature for the analysis. I begin by performing exploratory data analysis to gain insights into the dataset and create a preliminary model. I then enhance this model using both local optimization and Bayesian methods. Finally, I assess the model's quality by performing parametric bootstrap analysis.
 
 
 ## 2. Data Characteristics
@@ -36,44 +36,44 @@ The outcome of interest is the variable *retained* which is the fraction of part
 + The endpoint of the bin,
 + The number of particles detected,
 
-Our study aims to simulate snowflake diameters that accurately reflect the data, in order to investigate the aeolian transport of snow. To this end, we are analyzing the variable *retained*, which represents the fraction of particles belonging to each diameter bin. 
+This study aims to simulate snowflake diameters that accurately reflect the data, in order to investigate the aeolian transport of snow. To this end, I am analyzing the variable *retained*, which represents the fraction of particles belonging to each diameter bin. 
 
-*Figure 1* displays the percentage of particles in each bin, with the distribution plotted according to the bin startpoint. The figure suggests that the data can be described by a mixture of log-normal distributions, with two distinct peaks visible: one at the startpoint of 0.25 and the other at the startpoint of 0.75.
+*Figure 1* displays the percentage of particles in each bin, with the distribution plotted according to the bin startpoint. The figure suggests that the data can be described by a mixture of log-normal distributions, with two visible distinct peaks. One can see a greater point concentration below the bin startpoint of 0.5 which shows that the selected diameter intervals do not have the same length. Moreover, the first interval contains approximately 3% of the particles which seems odd given the rest of the points.
 
 
 ```{r, fig.align="center", fig.cap="Figure 1: Percentage of particles in each bin"}
-plot(df$startpoint,df$retained...., main ='Percentage of particles in each bin', xlab = 'bin startpoint', ylab ='Frequency(%)', type='l')
+plot(df$startpoint,df$retained...., main ='Percentage of particles in each bin', xlab = 'Bin startpoint', ylab ='Proportion of particles(%)')
 ```
 
 
 
 ## 3. Model fitting
-After identifying that our data may be distributed as a mixture of two log-normal distributions, our next step is to evaluate the parameters for the density function:
+After identifying that the data may be distributed as a mixture of two log-normal distributions, the next step is to evaluate the parameters for the density function:
 
 $f(x) = p \frac{1}{x \sigma_1 \sqrt{2\pi}} e^{-\frac{(\ln x - \mu_1)^2}{2\sigma_1^2}} + (1-p) \frac{1}{x \sigma_2 \sqrt{2\pi}} e^{-\frac{(\ln x - \mu_2)^2}{2\sigma_2^2}}$
 
-To evaluate the five parameters $p$, $\mu_1$, $\sigma_1$, $\mu_2$, and $\sigma_2$, we will use the Expectation-Maximization (EM) algorithm, which is a widely used iterative method for estimating the parameters of statistical models with latent variables.
+To evaluate the five parameters $p$, $\mu_1$, $\sigma_1$, $\mu_2$, and $\sigma_2$, I will use the Expectation-Maximization (EM) algorithm, which is a widely used iterative method for estimating the parameters of statistical models with latent variables.
 
-In the first step of the EM algorithm, we will initialize the parameters and estimate the posterior distribution of the latent variables. In the second step, we will update the parameters using the expected values of the latent variables computed in the first step. We will repeat these two steps until convergence, which typically occurs when the change in the log-likelihood function falls below a certain threshold.
+In the first step of the EM algorithm, I will initialize the parameters and estimate the posterior distribution of the latent variables. In the second step, I will update the parameters using the expected values of the latent variables computed in the first step. I will repeat these two steps until convergence.
 
-After obtaining an initial estimate of the parameters using the EM algorithm, we will explore other methods to improve the estimation, such as local search and Bayesian approaches.
+After obtaining an initial estimate of the parameters using the EM algorithm, I will explore other methods to improve the estimation, such as local search and Bayesian approaches.
 
 ### EM algorithm 
-I implement an EM-algorithm taking as initialisation parameters 
+I implement hereafter an EM-algorithm taking as initialization parameters 
 
 $\mu_1 = 0.25$, $\sigma_1 = 0.75$, $\mu_2 = 0.25$, $\sigma_2 = 0.5$, $p = 0.5$
 
-I define $\epsilon = 0.001$ the threshold such that I stop the algorithm when the difference in the log-likelihoods is under $\epsilon$.
+$\epsilon = 0.001$ will constitute the threshold such that I stop the algorithm when the difference in the log-likelihoods is under $\epsilon$.
 
 The EM algorithm components are obtained with the following reasoning. 
 Let $X_1,\ldots,X_N$ be i.i.d. from
 $$f_{mixture}(x) = p \varphi_{lognormal,\mu_1,\sigma_1^2}(x) + (1-p) \varphi_{lognormal,\mu_2,\sigma_2^2}(x)$$
 where $$\varphi_{lognormal,\mu_1,\sigma_1^2}(x)$$ corresponds to the density of the lognormal distribution with parameters $\mu_1$ and $\sigma_1^2$. 
-The log likelihood doesn't have a good form so we draw $Zn = \mathbb{I}_{\left[X_n \text{ drawn from }\varphi_{\mu_2,\sigma_2^2}\right]} \sim \mathrm{Bern}(p)$ iid and independent of the $X_i$. We can rewrite the likelihood as \[
+The log likelihood doesn't have a good form so I draw $Zn = \mathbb{I}_{\left[X_n \text{ drawn from }\varphi_{\mu_2,\sigma_2^2}\right]} \sim \mathrm{Bern}(p)$ iid and independent of the $X_i$. One can rewrite the likelihood as \[
 \ell_{comp}(\theta) = \sum_{n=1}^N \left\{ (1-Z_n)\left[ \log \varphi_{lognormal, \mu_1,\sigma_1^2}(X_n) + \log(p) \right] + Z_n\left[ \log \varphi_{lognormal, \mu_2,\sigma_2^2}(X_n) + \log(1-p) \right] \right\}
 \]
 
-We can then define \[
+One can then define \[
 E_{\theta^{(l-1)}}\big[\ell_{comp}(\theta) \big| X_1,\ldots,X_n\big] = P(Z_n=1|X_n) = \frac{P(X_n|Z_n=1) P(Z_n=1)}{P(X_n)} =: \gamma_n^{(l-1)}
 \]
 
@@ -116,7 +116,7 @@ test_0 <- function(xn){
 
 ```
 
-Before doing my EM-algorithm, I do some jittering. I simulate points uniformly in the different diameters intervals in a proportion according to the percentage of particles in each bin. Although the number of detected particles is 705044, here I only simulate 705 to have a faster algorithm and because the results aren't very different using all the points.
+Before doing my EM-algorithm, I do some jittering. I simulate points uniformly in the different diameters intervals in a proportion according to the percentage of particles in each bin. Although the number of detected particles is 705044, I only simulate 705 points here to have a faster algorithm and because the results aren't very different compared to when using a higher number of points.
 
 ```{r EM algo jittering, echo=FALSE}
 #simulate points 
@@ -249,7 +249,7 @@ for (i in 1:length(to_plot_x)){
 
 area_y = AUC(to_plot_x, to_plot_y)
 
-plot(df$startpoint, df$retained...., col = 'red', type='l', main ='Fitted distribution and real data', xlab ='Bin startpoint', ylab='Number of particles')
+plot(df$startpoint, df$retained...., col = 'red', type='l', main ='Fitted distribution and real data', xlab ='Bin startpoint', ylab='Proportion of particles (%)')
 lines(to_plot_x, to_plot_y*area/area_y, type='l')
 
 
@@ -263,7 +263,7 @@ p <- p_init
 
 ```
 
-Although the density I obtained approximately fits the data, it is not fully satisfying because the peak at 0.7 is weaker than in the true distribution, thus is not accurately modeled. Moreover, the peak at 0.25 is over-estimated. To improve the fit, we will consider using local optimization techniques.
+Although the density I obtained approximately fits the data, it is not fully satisfying because the right peak is weaker than in the true distribution, thus is not accurately modeled. Moreover, the left peak is over-estimated. To improve the fit, one should consider using local optimization techniques.
 
 
 ### Local optimization
@@ -284,31 +284,31 @@ null_param <- function(param){
 ```
 
 
-I do in this section some kernel density estimation. Kernel density estimation is a non-parametric technique used to estimate the probability density function of a random variable based on a sample of data. The idea behind kernel density estimation is to place a "kernel" function at each data point, and then sum the kernel functions to create a smooth estimate of the density function.
+In this section, I do some kernel density estimation. Kernel density estimation is a non-parametric technique used to estimate the probability density function of a random variable based on a sample of data. The idea behind kernel density estimation is to place a "kernel" function at each data point, and then sum the kernel functions to create a smooth estimate of the density function.
 I thus estimate the density function as follows
 
 $f(x) = \frac{1}{n h} \sum_{i=1}^n K\left(\frac{x - X_i}{h}\right)$
 
-where h is a bandwidth parameter that controls the width of the kernel function and determines the degree of smoothing. A smaller bandwidth results in a more variable estimate, while a larger bandwidth results in a smoother estimate that may oversmooth the data.
+where h is a bandwidth parameter that controls the width of the kernel function and determines the degree of smoothing. A smaller bandwidth results in a more variable estimate, while a larger bandwidth results in a smoother estimate that may over-smooth the data.
 
 Kernel functions are typically symmetric, non-negative functions with zero mean, such as the Gaussian kernel that I use here and that has the following density
 
 $$f(x) = \frac{1}{\sigma \sqrt{2 \pi}} e^{-\frac{(x-\mu)^2}{2\sigma^2}}$$ 
 
 
-*Figure3* represents in red our data distribution and in black the one estimated with the kernel density estimation.
+*Figure3* represents the data distribution and the one estimated with the kernel density estimation.
 
 ```{r fig.align="center", fig.cap="Figure 3: Kernel density estimation"}
 suppressWarnings(library('KernSmooth'))
 
-plot(df$startpoint, df$retained...., type ='l', col = 'red')
+plot(df$startpoint, df$retained...., type ='l', col = 'red', xlab = 'Bin startpoint', ylab = 'Proportion of particles(%)', main = 'Kernel density estimation and real data')
 pol <- locpoly(df$startpoint, df$retained...., drv = 0, degree =2, kernel = "normal", 
         bandwidth = 0.25 )
 lines(pol)
 
 ```
 
-After re-evaluating the parameters, I refit the model to see if there were any improvements. *Figure4* shows the results with an histogram. There is a true improvement in our estimation thanks to the use of kernel density estimation. Specifically, one can see that the peak at 0.6 is better estimated, suggesting that our modeling approach is capturing more of the underlying distribution. However, I note that the peak at 0 is still over-estimated, which indicates that further optimization may be necessary to obtain an accurate model.
+After re-evaluating the parameters, I refit the model to see if there were any improvements. *Figure4* shows the results with an histogram. There is a real improvement in the estimation thanks to the use of kernel density estimation. Specifically, one can see that the right peak is better estimated, suggesting that our modeling approach is capturing more of the underlying distribution. However, I note that the left peak is still over-estimated, which indicates that further optimization may be necessary to obtain an accurate model. 
 
 ```{r optimization 3, echo=FALSE}
 #new_X is the kernel density estimation density
@@ -340,7 +340,7 @@ lines(df$startpoint, df$retained..../area, col='red')
 
 
 ### Bayesian approach
-In this section, I use Markov chain Monte Carlo (MCMC) to further refine the parameters obtained with local search. MCMC is a powerful technique for estimating the parameters of complex models. The idea behind MCMC is to construct a Markov chain whose stationary distribution is the distribution of interest. This is achieved by iteratively proposing new parameter values and accepting or rejecting them based on the likelihood of the data given the proposed values. The result is a sequence of parameter values that, after a certain number of iterations, approximate the posterior distribution of the parameters.
+In this section, I use Markov Chain Monte Carlo technique (MCMC) to further refine the parameters obtained with local search. The idea behind MCMC is to construct a Markov chain whose stationary distribution is the distribution of interest. This is achieved by iteratively proposing new parameter values and accepting or rejecting them based on the likelihood of the data, given the proposed values. The result is a sequence of parameter values that, after a certain number of iterations, approximate the posterior distribution of the parameters.
 
 To implement MCMC, I use a proposal distribution that generates new parameter values from the current value. In my case, I use a Gaussian proposal distribution with a standard deviation of 0.01 and an initial mean given by the parameters obtained in the previous section. The advantage of this proposal is that it is symmetric, which simplifies the acceptance/rejection step of the MCMC algorithm. 
 
@@ -409,7 +409,7 @@ posterior <- posterior[seq(1, nrow(posterior), thin),]
 ```
 
 
-*Figure6* allows us to see the new fitted distribution which doesn't appear better than the previous one. The generated histogram doesn't represent the true distribution accurately at all since the peaks are not accurately represented. I will discuss those results deeper in the following section.
+*Figure5* allows us to see the new fitted distribution which doesn't appear better than the previous one. The generated histogram doesn't represent the true distribution accurately at all since the peaks are not accurately represented. I will discuss those results deeper in the following section.
 
 ```{r, fig.align="center", fig.cap="Figure 5: MCMC results"}
 sample <- numeric(length = 52)
@@ -443,9 +443,9 @@ To evaluate the stability of my EM-algorithm solutions, I want to see how our es
 | Setup 5 | $\mu_1 + \epsilon$ | $\mu_2-\epsilon$ | $\sigma_1$     | $\sigma_2$     | $p+2\epsilon$ |
 | Setup 6 | $\mu_1 - \epsilon$ | $\mu_2+\epsilon$ | $\sigma_1$     | $\sigma_2$     |$p+\epsilon$ |
 
-where $\mu_1$, $\sigma_1$, $\mu_2$, $\sigma_2$ and $p$ are the parameters estimated with the EM algorithm. In other words, setup number one uses the parameters from the EM algorithm is used to be compared to the different five other setups. 
+where $\mu_1$, $\sigma_1$, $\mu_2$, $\sigma_2$ and $p$ are the parameters estimated with the EM algorithm. In other words, setup 1 uses the parameters from the EM algorithm. The other plots are then to be compared to this reference setup.
 
-The results are given by *Figure6*. It appears that the obtained density varies with those slight changes. Setup 3 doesn't fit well the data but also corresponds to a lot of parameters that have been changed. Setup 4 and 2 seem to improve the model even though the first part of the histogram is still over-represented in the model. 
+The results are given by *Figure6*. It appears that the obtained density varies with those slight changes. Setup 3 doesn't fit the data well, but also corresponds to a lot of parameters that have been changed. Setup 4 and 2 seem to improve the model even though the first part of the histogram is still over-represented. 
 
 
 ```{r, fig.align="center", fig.cap="Figure 6: EM algorithm stability"}
@@ -458,42 +458,42 @@ par(mfrow = c(2,3))
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init) }
-hist(sample, main='Distribution with setup 1', freq=F)
+hist(sample, main='Distribution with setup 1', freq=F, xlab='Sample values')
 lines(df$startpoint, df$retained..../area, col='red')
 
 #graph2
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], mu1_init+epsilon, mu2_init+epsilon, sigma1_init+epsilon, sigma2_init+epsilon, p_init+2*epsilon) }
-hist(sample, main='Distribution with setup 2', freq=F)
+hist(sample, main='Distribution with setup 2', freq=F, xlab='Sample values')
 lines(df$startpoint, df$retained..../area, col='red')
 
 #graph3
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], mu1_init-epsilon, mu2_init-epsilon, sigma1_init-epsilon, sigma2_init-epsilon, p_init+2*epsilon) }
-hist(sample, main='Distribution with setup 3', freq=F)
+hist(sample, main='Distribution with setup 3', freq=F, xlab='Sample values')
 lines(df$startpoint, df$retained..../area, col='red')
 
 #graph4
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], mu1_init-epsilon, mu2_init+epsilon, sigma1_init+epsilon, sigma2_init+epsilon, p_init+2*epsilon) }
-hist(sample, main='Distribution with setup 4', freq=F)
+hist(sample, main='Distribution with setup 4', freq=F, xlab='Sample values')
 lines(df$startpoint, df$retained..../area, col='red')
 
 #graph5
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], mu1_init+epsilon, mu2_init-epsilon, sigma1_init, sigma2_init, p_init+2*epsilon) }
-hist(sample, main='Distribution with setup 5', freq=F)
+hist(sample, main='Distribution with setup 5', freq=F, xlab='Sample values')
 lines(df$startpoint, df$retained..../area, col='red')
 
 #graph6
 sample <- numeric(length = 52)
 for (i in 1:52){
   sample[i] <- bilognorm(df$retained....[i], mu1_init-epsilon, mu2_init+epsilon, sigma1_init, sigma2_init, p_init+epsilon) }
-hist(sample, main = 'Distribution with setup 6', freq=F)
+hist(sample, main = 'Distribution with setup 6', freq=F, xlab='Sample values')
 lines(df$startpoint, df$retained..../area, col='red')
 ```
 
@@ -501,29 +501,29 @@ lines(df$startpoint, df$retained..../area, col='red')
 
 ### Convergence of the MCMC 
 
-In *Figure7*, the first five plots show the values of the parameters after removing the burn-in period (the first 1000 values in this case). If the MCMC algorithm is working well, we would expect to see convergence of the parameter values over time, indicating that the chain has explored the parameter space and settled into a stable distribution. However, for all of the parameters, we do not see clear convergence over the course of the chain.
+In *Figure7*, the first five plots show the values of the parameters after removing the burn-in period (the first 1000 values in this case). If the MCMC algorithm is working well, one would expect to see convergence of the parameter values over time, indicating that the chain has explored the parameter space and settled into a stable distribution. However, for all of the parameters, one does not see clear convergence over the course of the chain.
 
-The last plot in *Figure7* shows the acceptance probability of the proposals, with the mean value shown in red. Ideally, the acceptance probability should be in the range of 10% to 50%, indicating that the proposals are exploring the space effectively. However, in our case, the acceptance probability is quite high, indicating that the chain is not exploring the space efficiently.
+The last plot in *Figure7* shows the acceptance probability of the proposals, with the mean value shown in red. Ideally, the acceptance probability should be in the range of 10% to 50%, indicating that the proposals are exploring the space effectively. However, in that case, the acceptance probability is quite high, indicating that the chain is not exploring the space efficiently.
 
-These issues with the MCMC procedure likely explains why our parameter estimates do not appear to have improved in *Figure6*. We need to investigate further to determine the cause of these problems and identify strategies for improving the performance of the MCMC algorithm.
+These issues with the MCMC procedure likely explains why the parameter estimates do not appear to improve in *Figure6*. I would need to investigate further to determine the cause of these problems and identify strategies for improving the performance of the MCMC algorithm.
 
 
 ```{r fig.align="center", fig.cap="Figure 7: MCMC convergence"}
 par(mfrow = c(2,3))
-plot(posterior[,1], type="l", main ='Values of mu1', xlab = 'iteration', ylab ='mu1')
-plot(posterior[,2], type="l", main ='Values of mu2', xlab = 'iteration', ylab ='mu2')
-plot(posterior[,3], type="l", main ='Values of sigma1', xlab = 'iteration', ylab ='sigma1')
-plot(posterior[,4], type="l", main ='Values of sigma2', xlab = 'iteration', ylab ='sigma2')
-plot(posterior[,5], type="l", main ='Values of p', xlab = 'iteration', ylab ='p')
-plot(prob_stock, type="l", main ='Acceptance probability', xlab = 'iteration', ylab ='Acceptance probability')
+plot(posterior[,1], type="l", main ='Values of mu1', xlab = 'Iterations', ylab ='mu1')
+plot(posterior[,2], type="l", main ='Values of mu2', xlab = 'Iterations', ylab ='mu2')
+plot(posterior[,3], type="l", main ='Values of sigma1', xlab = 'Iterations', ylab ='sigma1')
+plot(posterior[,4], type="l", main ='Values of sigma2', xlab = 'Iterations', ylab ='sigma2')
+plot(posterior[,5], type="l", main ='Values of p', xlab = 'Iterations', ylab ='p')
+plot(prob_stock, type="l", main ='Acceptance probability', xlab = 'Iterations', ylab ='Acceptance probability')
 abline(h = mean(prob_stock), col='red')
 ```
 
 
 ### Parametric bootstrap
-In this section, a parametric bootstrap algorithm [2] is implemented to assess the goodness of fit of the fitted distribution. The purpose of the algorithm is to sample from the fitted distribution using the estimated parameters, and then calculate the Kolmogorov-Smirnov statistic, denoted by $T$. To do so, I sample from the fitted distribution with our estimated parameters. I use the Kolmogorov-Smirnov statistic $T = \sup_x \Big| \widehat{F}_N(x) - F_\widehat{\lambda}(x) \Big|$, where I suppose that under $H_0$ our estimated parameters $\widehat{\lambda}$ are consistent to the real parameters ${\lambda}_0$.
+In this section, a parametric bootstrap algorithm [2] is implemented to assess if the data truly comes from a mixture of lognormal distributions. The purpose of the algorithm is to sample from the fitted distribution using the estimated parameters, and then calculate the Kolmogorov-Smirnov statistic, denoted by $T$. To do so, I sample from the fitted distribution with the estimated parameters. I use the Kolmogorov-Smirnov statistic $T = \sup_x \Big| \widehat{F}_N(x) - F_\widehat{\lambda}(x) \Big|$, where one assumes that under $H_0$ the estimated parameters $\widehat{\lambda}$ are consistent to the real parameters ${\lambda}_0$.
 
-The null hypothesis we want to test is thus 
+The null hypothesis I want to test is thus 
 
 $H_0:F \in \mathcal{F} = \{ F_\lambda \mid \lambda \in \Lambda \}$ against $H_1: F \notin \mathcal{F}$ if $\mathcal{F}=\{F_0 \}$
 
@@ -594,14 +594,14 @@ Bootstrap(new_X, T_0, mu1, mu2, sigma1, sigma2, p, 100)
 #boxplot(b, main ='P-value of the parametric bootstrap boxplot')
 ```
 
-The obtained p-value is of 0.99 so we don't reject the null hypothesis. In other words, we conclude that the hypothesis that our data comes from a mixture of two lognormal distributions is not rejected.
+The obtained p-value is of 0.99 so I don't reject the null hypothesis. In other words, one concludes that the hypothesis that our data comes from a mixture of two lognormal distributions is not rejected.
 
-## 6. Discussion and conclusion
-Throughout this project, I have focused on the mixture of two lognormal distributions as it fits the data well, and our parametric bootstrap algorithm did not reject it. Estimating the parameters of this distribution is challenging, as there is no closed-form formula for the maximum likelihood estimate. I have used a combination of the EM algorithm and local optimization to estimate the parameters, which resulted in a slightly improved fit of the model. The initial parameters for the EM algorithm were chosen based on descriptive statistics and provided a satisfactory starting point for the optimization.
+## 5. Discussion and conclusion
+Throughout this project, I have focused on the mixture of two lognormal distributions as it fits the data well, and my parametric bootstrap algorithm did not reject it. Estimating the parameters of this distribution is challenging, as there is no closed-form formula for the maximum likelihood estimate. I have used a combination of the EM algorithm and local optimization to estimate the parameters, which resulted in a slightly improved fit of the model. The initial parameters for the EM algorithm were chosen based on descriptive statistics and provided a satisfactory starting point for the optimization.
 
 Although the MCMC procedure was expected to further refine the parameter estimates, it failed to converge. The acceptance probability was high, indicating that the parameters space was not adequately explored. To improve the algorithm, I could try using a proposal distribution other than the Gaussian or adjust the standard deviation of the parameters to explore more of the space. Overall, this project demonstrates the importance of using multiple methods to estimate parameters and assess the goodness of fit of a distribution.
 
-## 7. References
+## 6. References
 [1] https://hal.inria.fr/inria-00405714/document \\
 
 [2] https://github.com/TMasak/StatComp/blob/master/Notes/10_Bootstrap.Rmd, section 'Parametric bootstrap and goodness of fit' \\
