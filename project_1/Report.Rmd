@@ -26,7 +26,7 @@ set.seed(435) #set the seed for reproducible results
 ## 1. Introduction
 Snow particle size is a critical feature used to model and understand the dynamics of avalanches, particularly large powder-snow avalanches that behave like fast-moving clouds down mountainsides [1]. The sedimentation velocity, which is highly influenced by particle size, plays a significant role in the dynamic of turbulent dilute suspension avalanches [1]. Accurate modeling of sedimentation velocity is crucial, as errors in size estimation can lead to 10x greater errors in velocity estimation.
 
-In this report, I analyze a dataset of snow particle sizes obtained from a PhD student at the Laboratory of Cryospheric Sciences at EPFL. The dataset includes the number of particles in each size category, which is the most important feature for the analysis. I begin by performing exploratory data analysis to gain insights into the dataset and create a preliminary model. I then enhance this model using both local optimization and Bayesian methods. Finally, I assess the model's quality by performing parametric bootstrap analysis.
+In this report, I analyze a dataset of snow particle sizes obtained from a PhD student at the Laboratory of Cryospheric Sciences at EPFL. The dataset includes the number of particles in each size category, which is the most important feature for the analysis. I begin by performing exploratory data analysis to gain insights into the dataset and create a preliminary model. I then enhance this model using local optimization. Finally, I assess the model's quality by performing parametric bootstrap analysis.
 
 
 ## 2. Data Characteristics
@@ -36,13 +36,13 @@ The outcome of interest is the variable *retained* which is the fraction of part
 + The endpoint of the bin,
 + The number of particles detected,
 
-This study aims to simulate snowflake diameters that accurately reflect the data, in order to investigate the aeolian transport of snow. To this end, I am analyzing the variable *retained*, which represents the fraction of particles belonging to each diameter bin. 
+This study aims to simulate snowflake diameters that accurately reflect the data, in order to investigate the aeolian transport of snow.
 
-*Figure 1* displays the percentage of particles in each bin, with the distribution plotted according to the bin startpoint. The figure suggests that the data can be described by a mixture of log-normal distributions, with two visible distinct peaks. The interval lengths are different so I divide my proportions by the interval length in order to accurately represent the distribution.
+*Figure 1* displays the percentage of particles in each bin relative to the bin length, with the distribution plotted according to the bin startpoint. The figure suggests that the data can be described by a mixture of log-normal distributions, with two visible distinct peaks. The bin interval lengths are different so I divide my initial proportions by the interval length in order to accurately represent the distribution.
 
 
 ```{r, fig.align="center", fig.cap="Figure 1: Percentage of particles in each bin"}
-df$binsize <- df$endpoint - df$startpoint
+df$binsize <- df$endpoint - df$startpoint #size of the intervals
 plot(df$startpoint,(df$retained..../(100*df$binsize)), main ='Percentage of particles in each bin', xlab = 'Bin startpoint', ylab ='Proportion of particles(%)', type ='l', col='red')
 ```
 
@@ -105,10 +105,10 @@ bilognorm <- function(x, mu1, mu2, sigma1, sigma2, p) {
 }
 ```
 
-Before doing my EM-algorithm, I do some jittering. I simulate points uniformly in the different diameters intervals in a proportion according to the percentage of particles in each bin. I simulate 705044 points and obtain the following result.
+Before doing my EM-algorithm, I do some jittering. I simulate points uniformly in the different diameters intervals in a proportion according to the percentage of particles in each bin. I simulate 705044 points which corresponds to the total number of particles detected.
 
 ```{r EM algo jittering, echo=FALSE}
-#simulate points 
+#simulate 705044 points 
 n_points <- trunc(df$particles.detected[1]) #total of points I will take
 X <- c()
 int_size <- numeric(length(df$retained....)) #number of points in each interval
@@ -120,28 +120,23 @@ for (i in 1:52){
   X <- append(X, r)
 }
 
-#hist(X)
 
-#Initialisation 
+#Initialisation of the EM algorithm 
 p_init <- 0.5
 mu1_init <- 0.25
 mu2_init <- 0.75
 sigma1_init <- 0.25
 sigma2_init <- 0.5
-#X <- df$retained....
 
-
+#function to estimate the parameters
 estimate <- function(X, p_init, mu1_init, mu2_init, sigma1_init, sigma2_init){
-
 Y <- numeric(length = length(X))
-
 for (i in 1:length(X)){
   if (X[i]>0){
     Y[i] <- log(X[i])}}
-
 N = length(X)
 
-#criterion : epsilon
+#criterion of convergence : epsilon
 epsilon = 0.001
 k=0
 err = 20000 #error to which we will compare epsilon
@@ -149,6 +144,7 @@ old_likelihood <- 0
 new_likelihood <- 0 
 p_new <- numeric(length=N)
 
+#I put a limit of k interations to have a faster algorithm (especially useful in the Bootstrap algorithm)
 while (err>epsilon & k<20){
   
 #log likelihood computation
@@ -197,22 +193,20 @@ new_likelihood <- 0
 
 
 }
-
 return(c(mu1_init, mu2_init, sigma1_init, sigma2_init, p_init))}
 
 param <- estimate(X = X, p_init = p_init, mu1_init = mu1_init, mu2_init = mu2_init, sigma1_init = sigma1_init, sigma2_init = sigma2_init )
 
-#print(c('The obtained parameters are', param))
 ```
 
 The parameters that I obtain are the following 
-$\mu_1$ = `r mu1_init`
-$\mu_2$ = `r mu2_init`
-$\sigma_1$ = `r sigma1_init`
-$\sigma_2$ =`r sigma2_init`
-$p$ = `r p_init`
+$\mu_1 = - 0.43$
+$\mu_2 = - 1.71$
+$\sigma_1 = 0.26$
+$\sigma_2 = 0.96$
+$p = 0.54$
 
-With the parameters I obtained, I generate *Figure2* which shows the density of the fitted model and our data. The red curve represents the data we aim at modeling and the black one represents our model estimation. We will keep this convention throughout the report.
+With the parameters I obtained, I generate *Figure2* which shows the fitted model and our data. The red curve represents the data we aim at modeling and the black one represents our model estimation. I will keep this convention throughout the report.
 
 ```{r, fig.align="center", fig.cap="Figure 2: Fitted distribution"}
 #the new parameters(estimated with EM)
@@ -240,12 +234,11 @@ mu2 <- mu2_init
 sigma1 <- sigma1_init
 sigma2 <- sigma2_init
 p <- p_init
-
 ```
 
-Although the density I obtained approximately fits the data, it is not fully satisfying because the right peak is weaker than in the true distribution, thus is not accurately modeled. Moreover, the left peak is over-estimated. To improve the fit, one should consider using local optimization techniques.
+Although the density I obtained approximately fits the data, it is not fully satisfying because the left peak is under-estimated. To improve the fit, we consider using local optimization techniques.
 
-### Stability of the EM algorithm solutions
+### Stability of the EM algorithm solution and local modifications
 To evaluate the stability of my EM-algorithm solutions, I want to see how our estimated density behaves when I slightly modify one or several parameters. I define an $\epsilon = 0.05$ that I add or subtract to my parameters to see to what extent this changes the model. The different setups are the following 
 
 | Setup |  mean 1       |     mean 2  |    standard deviation 1| standard deviation 2     |    probability  |
@@ -259,10 +252,10 @@ To evaluate the stability of my EM-algorithm solutions, I want to see how our es
 
 where $\mu_1$, $\sigma_1$, $\mu_2$, $\sigma_2$ and $p$ are the parameters estimated with the EM algorithm. In other words, setup 1 uses the parameters from the EM algorithm. The other plots are then to be compared to this reference setup.
 
-The results are given by *Figure3*. The obtained graphs do not seem to have improved compared to the EM-algorithm.
+The results are given by *Figure3*. The obtained graphs do not seem to have improved compared to the EM-algorithm. Thus, I am going to optimize the likelihood in order to find better parameters.
 
 
-```{r, fig.align="center", fig.cap="Figure 3: Modified EM-algorithm parameters"}
+```{r, fig.align="center", fig.cap="Figure 3: Local modification of parameters"}
 epsilon = 0.05
 par(mfrow = c(2,3))
 
@@ -329,13 +322,14 @@ lines(to_plot_x, to_plot_y, type='l')
 ```
 
 ### Local optimization
-Local optimization seeks to find the values of the parameters that minimize a given objective function, by searching the parameter space around an initial point. I use the r function optim to estimate my parameters starting from the estimated ones with the EM-algorithm.
+Local optimization seeks to find the values of the parameters that minimize a given objective function, by searching the parameter space around an initial point. I use the r function *optim* to estimate my parameters starting from the ones estimated with the EM-algorithm.
 
 ```{r local optimization, echo=FALSE}
 mixnorm <- function(param, X){
   return(p=param[5]*plnorm(X, param[1], param[3])+(1-param[5])*plnorm(X, param[2], param[4]))
 } #cdf mixture
 
+#log likelihood to optimize
 log_likelihood <- function(param){
   res <- 0 
   for(i in 1:52){
@@ -343,20 +337,20 @@ log_likelihood <- function(param){
   return(-res)
 }
 
+#old parameters 
 param <- c(mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)
+
+#new optimized parameters
 opt_param <- optim(par = param, fn = log_likelihood, gr=NULL)
 ```
 
 With local optimization, the new obtained parameters are 
-$\mu_1$ = `r opt_param$par[1]`
-$\mu_2$ = `r opt_param$par[2]`
-$\sigma_1$ = `r opt_param$par[3]`
-$\sigma_2$ =`r opt_param$par[4]`
-$p$ = `r opt_param$par[5]`
+$mu_1 = -0.45$ $\sigma_1 = 0.30$, $mu_2=-2.01$, $sigma_2 = 0.60$, $p=0.65$ 
 
-*Figure4* represents in red the data distribution, in black the one with parameters estimated with the EM-algorithm and in blue the one with the optimized parameters. The blue curve fits better the data than the black one which indicates the optimization is successful.  
+*Figure4* represents in red the data distribution, in black the one with parameters estimated with the EM-algorithm and in blue the one with the optimized parameters. The blue curve fits the data better than the black one which indicates the optimization is successful.  
 
 ```{r,  fig.align="center", fig.cap="Figure 4: Comparison of the distributions with the different estimated parameters"}
+#to plot
 to_plot_x <- seq(0, 1.5, by=0.01)
 to_plot_x <- append(to_plot_x, seq(1.5, 3, by=0.5))
 to_plot_y <- numeric(length(to_plot_x))
@@ -381,6 +375,7 @@ To execute the parametric bootstrap algorithm, the procedure outlined in [2] is 
 
 
 ```{r parametric bootstrap 2, echo=FALSE}
+#compute the T stat
 T_stat <- function(xn, mu1, mu2, sigma1, sigma2,p){
   F_N <- ecdf(xn) #the ecdf of our sample
   n = length(xn) #size of the sample
@@ -390,14 +385,13 @@ T_stat <- function(xn, mu1, mu2, sigma1, sigma2,p){
     sample[i] <- bilognorm(evaluate_diff[i], mu1, mu2, sigma1, sigma2, p)
   }
   F_star <- ecdf(sample)
-  #difabs <- abs(F_N(grid) - plnormMix(grid, meanlog1 = abs(mu1), sdlog1 = abs(sigma1), meanlog2 = abs(mu2), sdlog2 = abs(sigma2), p.mix = p) )
   difabs <- abs(F_N(evaluate_diff) - F_star(evaluate_diff) )
   return(max(difabs))
 }
 
 
 
-#we use the parameters we estimated before
+#parameters I estimated before
 mu1_boot <- opt_param$par[1]
 mu2_boot <- opt_param$par[2]
 sigma1_boot <- opt_param$par[3]
@@ -405,10 +399,10 @@ sigma2_boot <- opt_param$par[4]
 p_boot <- opt_param$par[5]
 T_0 <- T_stat(X, mu1_boot, mu2_boot, sigma1_boot, sigma2_boot, p_boot) #ok 
 
+#Parametric Bootstrap
 Bootstrap <- function(xn, T_0, mu1, mu2, sigma1, sigma2, p, B){
   n = length(xn)
   s <- 0
-  
   #Bootstrap
   T_boot <- rep(NA, B)
   x_resamples <- matrix(NA, nrow = B, ncol = n) #to put our resamples
@@ -432,15 +426,22 @@ Bootstrap <- function(xn, T_0, mu1, mu2, sigma1, sigma2, p, B){
   return((1/(B+1))*(s))
 }
 
-
+#p value
 b <- Bootstrap(X, T_0, mu1, mu2, sigma1, sigma2, p, 10)
-
 ```
 
 The obtained p-value is of `r b` so I don't reject the null hypothesis. In other words, one concludes that the hypothesis that our data comes from a mixture of two lognormal distributions is not rejected.
 
 ## 4. Discussion and conclusion
-Throughout this project, I have focused on the mixture of two lognormal distributions as it fits the data well, and my parametric bootstrap algorithm did not reject it. Estimating the parameters of this distribution is challenging, as there is no closed-form formula for the maximum likelihood estimate. I have used a combination of the EM algorithm and local optimization to estimate the parameters, which resulted in a slightly improved fit of the model. The initial parameters for the EM algorithm were chosen based on descriptive statistics and provided a satisfactory starting point for the optimization.
+Throughout this project, I have focused on the mixture of two lognormal distributions as it fits the data well, and my parametric bootstrap algorithm did not reject it. Estimating the parameters of this distribution is challenging, as there is no closed-form formula for the maximum likelihood estimate. I have used a combination of the EM algorithm and local optimization to estimate the parameters, which resulted in a slightly improved fit of the model. The initial parameters for the EM algorithm were chosen based on descriptive statistics and provided a satisfactory starting point for the optimization.The most important limit of this work is in terms of computational cost. 
+
+To conclude, this work enables now to simulate diameters accurately using the mixture of two lognormal distributions following this equation  
+
+$f(x) = p \frac{1}{x \sigma_1 \sqrt{2\pi}} e^{-\frac{(\ln x - \mu_1)^2}{2\sigma_1^2}} + (1-p) \frac{1}{x \sigma_2 \sqrt{2\pi}} e^{-\frac{(\ln x - \mu_2)^2}{2\sigma_2^2}}$
+
+with the parameters 
+
+$\mu_1 = -0.45$ $\sigma_1 = 0.30$, $\mu_2=-2.01$, $\sigma_2 = 0.60$, $p=0.65$ 
 
 
 ## 5. References
