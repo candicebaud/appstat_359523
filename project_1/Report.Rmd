@@ -379,7 +379,8 @@ To execute the parametric bootstrap algorithm, the procedure outlined in [2] is 
 T_stat <- function(xn, mu1, mu2, sigma1, sigma2,p){
   F_N <- ecdf(xn) #the ecdf of our sample
   n = length(xn) #size of the sample
-  evaluate_diff <- runif(n, min(xn), max(xn)) 
+  #evaluate_diff <- runif(n, min(xn), max(xn))
+  evaluate_diff <- xn
   sample <- rep(0,n)
   for (i in 1:n){
     sample[i] <- bilognorm(evaluate_diff[i], mu1, mu2, sigma1, sigma2, p)
