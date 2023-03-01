@@ -38,11 +38,12 @@ The outcome of interest is the variable *retained* which is the fraction of part
 
 This study aims to simulate snowflake diameters that accurately reflect the data, in order to investigate the aeolian transport of snow. To this end, I am analyzing the variable *retained*, which represents the fraction of particles belonging to each diameter bin. 
 
-*Figure 1* displays the percentage of particles in each bin, with the distribution plotted according to the bin startpoint. The figure suggests that the data can be described by a mixture of log-normal distributions, with two visible distinct peaks. One can see a greater point concentration below the bin startpoint of 0.5 which shows that the selected diameter intervals do not have the same length. Moreover, the first interval contains approximately 3% of the particles which seems odd given the rest of the points.
+*Figure 1* displays the percentage of particles in each bin, with the distribution plotted according to the bin startpoint. The figure suggests that the data can be described by a mixture of log-normal distributions, with two visible distinct peaks. The interval lengths are different so I divide my proportions by the interval length in order to accurately represent the distribution.
 
 
 ```{r, fig.align="center", fig.cap="Figure 1: Percentage of particles in each bin"}
-plot(df$startpoint,df$retained...., main ='Percentage of particles in each bin', xlab = 'Bin startpoint', ylab ='Proportion of particles(%)')
+df$binsize <- df$endpoint - df$startpoint
+plot(df$startpoint,(df$retained..../(100*df$binsize)), main ='Percentage of particles in each bin', xlab = 'Bin startpoint', ylab ='Proportion of particles(%)', type ='l', col='red')
 ```
 
 
@@ -104,29 +105,17 @@ bilognorm <- function(x, mu1, mu2, sigma1, sigma2, p) {
 }
 ```
 
-```{r test, echo=FALSE}
-test_0 <- function(xn){
-  res <-0
-  for (i in 1:length(xn)){
-    if (xn[i] ==0){
-      res <- res + 1
-    }
-  }
-  return(res)}
-
-```
-
-Before doing my EM-algorithm, I do some jittering. I simulate points uniformly in the different diameters intervals in a proportion according to the percentage of particles in each bin. Although the number of detected particles is 705044, I only simulate 705 points here to have a faster algorithm and because the results aren't very different compared to when using a higher number of points.
+Before doing my EM-algorithm, I do some jittering. I simulate points uniformly in the different diameters intervals in a proportion according to the percentage of particles in each bin. I simulate 705044 points and obtain the following result.
 
 ```{r EM algo jittering, echo=FALSE}
 #simulate points 
-n_points <- trunc(df$particles.detected[1]/1000) #total of points I will take
+n_points <- trunc(df$particles.detected[1]) #total of points I will take
 X <- c()
 int_size <- numeric(length(df$retained....)) #number of points in each interval
-for (i in 1:length(df$retained....)){
-  int_size[i]<- df$retained....[i]*n_points
+for (i in 1:52){
+  int_size[i]<- df$retained....[i]*n_points/100
 }
-for (i in 1:length(df$retained....)){
+for (i in 1:52){
   r <- runif(int_size[i], min=df$startpoint[i], max = df$endpoint[i])
   X <- append(X, r)
 }
@@ -160,7 +149,7 @@ old_likelihood <- 0
 new_likelihood <- 0 
 p_new <- numeric(length=N)
 
-while (err>epsilon){
+while (err>epsilon & k<20){
   
 #log likelihood computation
 for (i in 1:length(X)){
@@ -168,11 +157,6 @@ for (i in 1:length(X)){
 old_likelihood <- log(old_likelihood)
 
 #new parameters
-#f_theta <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init) + (1-p_init)*dnorm(Y, mean=mu2_init, sd = sigma2_init)
-
-#if (test_0(f_theta) >0 ){
-  #gamma <- 0}else {gamma <- p_init*dnorm(Y, mean=mu1_init, sd = sigma1_init)/f_theta}
-
 f_theta <- numeric(length(X))
 gamma<- numeric(length(X))
 for(i in 1:length(X)){
@@ -216,11 +200,17 @@ new_likelihood <- 0
 
 return(c(mu1_init, mu2_init, sigma1_init, sigma2_init, p_init))}
 
-param <- estimate(X = X, p_init = p_init, mu1_init = mu1_init, mu2_init =mu2_init, sigma1_init = sigma1_init, sigma2_init = sigma2_init )
+param <- estimate(X = X, p_init = p_init, mu1_init = mu1_init, mu2_init = mu2_init, sigma1_init = sigma1_init, sigma2_init = sigma2_init )
 
-print(c('The obtained parameters are', param))
+#print(c('The obtained parameters are', param))
 ```
 
+The parameters that I obtain are the following 
+$\mu_1$ = `r mu1_init`
+$\mu_2$ = `r mu2_init`
+$\sigma_1$ = `r sigma1_init`
+$\sigma_2$ =`r sigma2_init`
+$p$ = `r p_init`
 
 With the parameters I obtained, I generate *Figure2* which shows the density of the fitted model and our data. The red curve represents the data we aim at modeling and the black one represents our model estimation. We will keep this convention throughout the report.
 
@@ -233,25 +223,15 @@ sigma2_init <- param[4]
 p_init <- param[5]
 
 #to plot
-area = AUC(x=df$startpoint, y=df$retained....)
-#sample <- numeric(length = 52)
-#for (i in 1:52){
-  #sample[i] <- bilognorm(df$retained....[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init) }
-#hist(sample, main ='Histogram of the fitted distribution and data density', xlab='bin startpoint', ylab = 'Number of occurences')
-#lines(df$startpoint, df$retained....)
-#lines(df$retained...., bilognorm(df$retained...., mu1_init, mu2_init, sigma1_init, sigma2_init, p_init))
-
 to_plot_x <- seq(0, 1.5, by=0.01)
 to_plot_x <- append(to_plot_x, seq(1.5, 3, by=0.5))
 to_plot_y <- numeric(length(to_plot_x))
 for (i in 1:length(to_plot_x)){
  to_plot_y[i] <- bilognorm(to_plot_x[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)}
 
-area_y = AUC(to_plot_x, to_plot_y)
 
-plot(df$startpoint, df$retained...., col = 'red', type='l', main ='Fitted distribution and real data', xlab ='Bin startpoint', ylab='Proportion of particles (%)')
-lines(to_plot_x, to_plot_y*area/area_y, type='l')
-
+plot(df$startpoint,(df$retained..../(100*df$binsize)), col = 'red', type='l', main ='Fitted distribution and real data', xlab ='Bin startpoint', ylab='Proportion of particles (%)')
+lines(to_plot_x, to_plot_y, type='l')
 
 
 #values I obtained and that I want to optimize 
@@ -265,174 +245,8 @@ p <- p_init
 
 Although the density I obtained approximately fits the data, it is not fully satisfying because the right peak is weaker than in the true distribution, thus is not accurately modeled. Moreover, the left peak is over-estimated. To improve the fit, one should consider using local optimization techniques.
 
-
-### Local optimization
-Local optimization seeks to find the values of the parameters that minimize a given objective function, by searching the parameter space around an initial point.
-
-```{r, null param, echo=FALSE, include=FALSE}
-#function to test the nullity of parameters
-null_param <- function(param){
-  res <-0
-  for(i in 1:length(param)){
-    if (param[i] <0.1){
-      res <- res +1 
-    }
-  }
-  return(res)
-}
-
-```
-
-
-In this section, I do some kernel density estimation. Kernel density estimation is a non-parametric technique used to estimate the probability density function of a random variable based on a sample of data. The idea behind kernel density estimation is to place a "kernel" function at each data point, and then sum the kernel functions to create a smooth estimate of the density function.
-I thus estimate the density function as follows
-
-$f(x) = \frac{1}{n h} \sum_{i=1}^n K\left(\frac{x - X_i}{h}\right)$
-
-where h is a bandwidth parameter that controls the width of the kernel function and determines the degree of smoothing. A smaller bandwidth results in a more variable estimate, while a larger bandwidth results in a smoother estimate that may over-smooth the data.
-
-Kernel functions are typically symmetric, non-negative functions with zero mean, such as the Gaussian kernel that I use here and that has the following density
-
-$$f(x) = \frac{1}{\sigma \sqrt{2 \pi}} e^{-\frac{(x-\mu)^2}{2\sigma^2}}$$ 
-
-
-*Figure3* represents the data distribution and the one estimated with the kernel density estimation.
-
-```{r fig.align="center", fig.cap="Figure 3: Kernel density estimation"}
-suppressWarnings(library('KernSmooth'))
-
-plot(df$startpoint, df$retained...., type ='l', col = 'red', xlab = 'Bin startpoint', ylab = 'Proportion of particles(%)', main = 'Kernel density estimation and real data')
-pol <- locpoly(df$startpoint, df$retained...., drv = 0, degree =2, kernel = "normal", 
-        bandwidth = 0.25 )
-lines(pol)
-
-```
-
-After re-evaluating the parameters, I refit the model to see if there were any improvements. *Figure4* shows the results with an histogram. There is a real improvement in the estimation thanks to the use of kernel density estimation. Specifically, one can see that the right peak is better estimated, suggesting that our modeling approach is capturing more of the underlying distribution. However, I note that the left peak is still over-estimated, which indicates that further optimization may be necessary to obtain an accurate model. 
-
-```{r optimization 3, echo=FALSE}
-#new_X is the kernel density estimation density
-new_X <- unname(unlist(pol[2]))
-
-new_param <- estimate(new_X, p_init, mu1_init, mu2_init, sigma1_init, sigma2_init)
-
-print(c('The obtained values are', new_param))
-```
-
-
-```{r, fig.align="center", fig.cap="Figure 4: Kernel density estimation results"}
-par(mfrow=c(1,2))
-sample <- numeric(length = 52)
-for (i in 1:52){
-  sample[i] <- bilognorm(df$retained....[i], new_param[2], new_param[3], new_param[4], new_param[5], new_param[1]) }
-hist(sample, main='Fitted model with KDE', freq=F) #in %
-lines(df$startpoint, df$retained..../area, col='red')
-
-#df%>%group_by(startpoint, retained....)%>% ggplot(aes(x=startpoint, y=retained....)) + geom_bar(stat='identity')
-
-sample <- numeric(length = 52)
-for (i in 1:52){
-  sample[i] <- bilognorm(df$retained....[i], mu1, mu2, sigma1, sigma2, p) }
-hist(sample, main='Fitted model with EM algorithm', freq=F)
-lines(df$startpoint, df$retained..../area, col='red')
-
-```
-
-
-### Bayesian approach
-In this section, I use Markov Chain Monte Carlo technique (MCMC) to further refine the parameters obtained with local search. The idea behind MCMC is to construct a Markov chain whose stationary distribution is the distribution of interest. This is achieved by iteratively proposing new parameter values and accepting or rejecting them based on the likelihood of the data, given the proposed values. The result is a sequence of parameter values that, after a certain number of iterations, approximate the posterior distribution of the parameters.
-
-To implement MCMC, I use a proposal distribution that generates new parameter values from the current value. In my case, I use a Gaussian proposal distribution with a standard deviation of 0.01 and an initial mean given by the parameters obtained in the previous section. The advantage of this proposal is that it is symmetric, which simplifies the acceptance/rejection step of the MCMC algorithm. 
-
-```{r, MCMC, echo=FALSE}
-likelihood_mixed <- function(xn, mu1, mu2, sigma1, sigma2, p){
-  old_likelihood <- 0
-  for (i in 1:length(xn)){
-    old_likelihood<- old_likelihood + bilognorm(xn[i], mu1, mu2, sigma1, sigma2, p)
-  return(old_likelihood)}}
-
-
-n_iter_max <- 6000
-burn_in <- 1000 
-thin <- 2
-
-prob_stock <- rep(0, n_iter_max)
-
-#initialize the parameters 
-mu1 <- new_param[2]
-mu2 <- new_param[3]
-sigma1 <- new_param[4]
-sigma2 <- new_param[5]
-p <- new_param[1]
-params <- c(mu1, mu2, sigma1, sigma2, p)
-
-chain <- matrix(0, nrow = n_iter_max, ncol = length(params))
-chain[1,] <- params
-
-prop_sd <- c(0.01, 0.01, 0.01, 0.01, 0.01)
-
-for (i in 2:n_iter_max) {
-  # Generate proposal
-  prop <- rnorm(length(params), mean = chain[i-1,], sd = prop_sd)
-  prop <- abs(prop)
-  
-  # Compute acceptance probability
-  #p_prop <- sum(dnorm(X, mean = c(prop[1], prop[2], prop[3], prop[4], prop[5]), sd=prop_sd))
-  p_prop = 1
-  p_curr = 1 # I have a gaussian proposal that is symmetric so the ratio of p_prop/p_curr is 1 (I set both at 1 to have the ratio equal to 1) 
-  #p_curr <- sum(dnorm(X, mean = chain[i-1,], sd = prop_sd))
-  
-  accept_prob <- likelihood_mixed(new_X, prop[1], prop[2], prop[3], prop[4], prop[5])*p_prop/(likelihood_mixed(new_X, chain[i-1,][1], chain[i-1,][2], chain[i-1,][3], chain[i-1,][4], chain[i-1,][5])*p_curr)
-  if(accept_prob>=1){
-    accept_prob <- 1
-  }
-  prob_stock[i] <- accept_prob
-  
-  # Decide whether to accept or reject proposal
-  if (runif(1) < accept_prob) {
-    chain[i,] <- prop
-  } else {
-    chain[i,] <- chain[i-1,]
-  }
-}
-
-posterior <- chain[-(1:burn_in),]
-posterior <- posterior[seq(1, nrow(posterior), thin),]
-
-#new parameters
-#mu1<- posterior[,1][length(posterior[,1])]
-#mu2 <- posterior[,2][length(posterior[,2])]
-#sigma1 <- posterior[,3][length(posterior[,3])]
-#sigma2 <- posterior[,4][length(posterior[,4])]
-#p <- posterior[,5][length(posterior[,5])]
-
-```
-
-
-*Figure5* allows us to see the new fitted distribution which doesn't appear better than the previous one. The generated histogram doesn't represent the true distribution accurately at all since the peaks are not accurately represented. I will discuss those results deeper in the following section.
-
-```{r, fig.align="center", fig.cap="Figure 5: MCMC results"}
-sample <- numeric(length = 52)
-for (i in 1:52){
-  sample[i] <- bilognorm(df$retained....[i], prop[1], prop[2], prop[3], prop[4], prop[5]) }
-hist(sample, main='Fitted model with a MCMC method', xlab = 'sample values', ylab ='number of occurences', freq=F)
-lines(df$startpoint, df$retained..../area, col='red')
-
-
-#to_plot_x <- seq(0, 3, by=0.01)
-#to_plot_y <- numeric(length(to_plot_x))
-#for (i in 1:length(to_plot_x)){
-  #to_plot_y[i]<- bilognorm(to_plot_x[i],mu1, mu2, sigma1, sigma2, p) }
-#plot(df$startpoint,df$retained....)
-#lines(to_plot_x, to_plot_y, type = 'l')
-#plot(to_plot_x,to_plot_y*10)
-#lines(df$startpoint,df$retained....)
-``` 
-
-
-## 4. Results analysis
 ### Stability of the EM algorithm solutions
-To evaluate the stability of my EM-algorithm solutions, I want to see how our estimated density behaves when I slightly modify one or several parameters. I define an $\epsilon = 0.1$ that I add or subtract to my parameters to see to what extent this changes the model. The different setups are the following 
+To evaluate the stability of my EM-algorithm solutions, I want to see how our estimated density behaves when I slightly modify one or several parameters. I define an $\epsilon = 0.05$ that I add or subtract to my parameters to see to what extent this changes the model. The different setups are the following 
 
 | Setup |  mean 1       |     mean 2  |    standard deviation 1| standard deviation 2     |    probability  |
 |---------|--------------|------------|---------------|---------------|----------|
@@ -445,80 +259,116 @@ To evaluate the stability of my EM-algorithm solutions, I want to see how our es
 
 where $\mu_1$, $\sigma_1$, $\mu_2$, $\sigma_2$ and $p$ are the parameters estimated with the EM algorithm. In other words, setup 1 uses the parameters from the EM algorithm. The other plots are then to be compared to this reference setup.
 
-The results are given by *Figure6*. It appears that the obtained density varies with those slight changes. Setup 3 doesn't fit the data well, but also corresponds to a lot of parameters that have been changed. Setup 4 and 2 seem to improve the model even though the first part of the histogram is still over-represented. 
+The results are given by *Figure3*. The obtained graphs do not seem to have improved compared to the EM-algorithm.
 
 
-```{r, fig.align="center", fig.cap="Figure 6: EM algorithm stability"}
-#I define epsilon from which I will make our values change to see which model is better fitting our data
-epsilon = 0.1
-
+```{r, fig.align="center", fig.cap="Figure 3: Modified EM-algorithm parameters"}
+epsilon = 0.05
 par(mfrow = c(2,3))
 
 #graph1
-sample <- numeric(length = 52)
-for (i in 1:52){
-  sample[i] <- bilognorm(df$retained....[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init) }
-hist(sample, main='Distribution with setup 1', freq=F, xlab='Sample values')
-lines(df$startpoint, df$retained..../area, col='red')
+to_plot_x <- seq(0, 1.5, by=0.01)
+to_plot_x <- append(to_plot_x, seq(1.5, 3, by=0.5))
+to_plot_y <- numeric(length(to_plot_x))
+for (i in 1:length(to_plot_x)){
+ to_plot_y[i] <- bilognorm(to_plot_x[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)}
+
+plot(df$startpoint,(df$retained..../(100*df$binsize)), col = 'red', type='l', main ='Distribution with setup 1', xlab ='Bin startpoint', ylab='Proportion of particles (%)')
+lines(to_plot_x, to_plot_y, type='l')
 
 #graph2
-sample <- numeric(length = 52)
-for (i in 1:52){
-  sample[i] <- bilognorm(df$retained....[i], mu1_init+epsilon, mu2_init+epsilon, sigma1_init+epsilon, sigma2_init+epsilon, p_init+2*epsilon) }
-hist(sample, main='Distribution with setup 2', freq=F, xlab='Sample values')
-lines(df$startpoint, df$retained..../area, col='red')
+to_plot_x <- seq(0, 1.5, by=0.01)
+to_plot_x <- append(to_plot_x, seq(1.5, 3, by=0.5))
+to_plot_y <- numeric(length(to_plot_x))
+for (i in 1:length(to_plot_x)){
+ to_plot_y[i] <- bilognorm(to_plot_x[i], mu1_init+epsilon, mu2_init+epsilon, sigma1_init+epsilon, sigma2_init+epsilon, p_init+2*epsilon)}
+
+plot(df$startpoint,(df$retained..../(100*df$binsize)), col = 'red', type='l', main ='Distribution with setup 2', xlab ='Bin startpoint', ylab='Proportion of particles (%)')
+lines(to_plot_x, to_plot_y, type='l')
 
 #graph3
-sample <- numeric(length = 52)
-for (i in 1:52){
-  sample[i] <- bilognorm(df$retained....[i], mu1_init-epsilon, mu2_init-epsilon, sigma1_init-epsilon, sigma2_init-epsilon, p_init+2*epsilon) }
-hist(sample, main='Distribution with setup 3', freq=F, xlab='Sample values')
-lines(df$startpoint, df$retained..../area, col='red')
+to_plot_x <- seq(0, 1.5, by=0.01)
+to_plot_x <- append(to_plot_x, seq(1.5, 3, by=0.5))
+to_plot_y <- numeric(length(to_plot_x))
+for (i in 1:length(to_plot_x)){
+ to_plot_y[i] <- bilognorm(to_plot_x[i], mu1_init-epsilon, mu2_init-epsilon, sigma1_init-epsilon, sigma2_init-epsilon, p_init+2*epsilon)}
+
+plot(df$startpoint,(df$retained..../(100*df$binsize)), col = 'red', type='l', main ='Distribution with setup 3', xlab ='Bin startpoint', ylab='Proportion of particles (%)')
+lines(to_plot_x, to_plot_y, type='l')
 
 #graph4
-sample <- numeric(length = 52)
-for (i in 1:52){
-  sample[i] <- bilognorm(df$retained....[i], mu1_init-epsilon, mu2_init+epsilon, sigma1_init+epsilon, sigma2_init+epsilon, p_init+2*epsilon) }
-hist(sample, main='Distribution with setup 4', freq=F, xlab='Sample values')
-lines(df$startpoint, df$retained..../area, col='red')
+to_plot_x <- seq(0, 1.5, by=0.01)
+to_plot_x <- append(to_plot_x, seq(1.5, 3, by=0.5))
+to_plot_y <- numeric(length(to_plot_x))
+for (i in 1:length(to_plot_x)){
+ to_plot_y[i] <- bilognorm(to_plot_x[i],mu1_init-epsilon, mu2_init+epsilon, sigma1_init+epsilon, sigma2_init+epsilon, p_init+2*epsilon)}
+
+plot(df$startpoint,(df$retained..../(100*df$binsize)), col = 'red', type='l', main ='Distribution with setup 4', xlab ='Bin startpoint', ylab='Proportion of particles (%)')
+lines(to_plot_x, to_plot_y, type='l')
 
 #graph5
-sample <- numeric(length = 52)
-for (i in 1:52){
-  sample[i] <- bilognorm(df$retained....[i], mu1_init+epsilon, mu2_init-epsilon, sigma1_init, sigma2_init, p_init+2*epsilon) }
-hist(sample, main='Distribution with setup 5', freq=F, xlab='Sample values')
-lines(df$startpoint, df$retained..../area, col='red')
+to_plot_x <- seq(0, 1.5, by=0.01)
+to_plot_x <- append(to_plot_x, seq(1.5, 3, by=0.5))
+to_plot_y <- numeric(length(to_plot_x))
+for (i in 1:length(to_plot_x)){
+ to_plot_y[i] <- bilognorm(to_plot_x[i],mu1_init+epsilon, mu2_init-epsilon, sigma1_init, sigma2_init, p_init+2*epsilon)}
 
-#graph6
-sample <- numeric(length = 52)
-for (i in 1:52){
-  sample[i] <- bilognorm(df$retained....[i], mu1_init-epsilon, mu2_init+epsilon, sigma1_init, sigma2_init, p_init+epsilon) }
-hist(sample, main = 'Distribution with setup 6', freq=F, xlab='Sample values')
-lines(df$startpoint, df$retained..../area, col='red')
+plot(df$startpoint,(df$retained..../(100*df$binsize)), col = 'red', type='l', main ='Distribution with setup 5', xlab ='Bin startpoint', ylab='Proportion of particles (%)')
+lines(to_plot_x, to_plot_y, type='l')
+
+#graph6 
+to_plot_x <- seq(0, 1.5, by=0.01)
+to_plot_x <- append(to_plot_x, seq(1.5, 3, by=0.5))
+to_plot_y <- numeric(length(to_plot_x))
+for (i in 1:length(to_plot_x)){
+ to_plot_y[i] <- bilognorm(to_plot_x[i],mu1_init-epsilon, mu2_init+epsilon, sigma1_init, sigma2_init, p_init+epsilon)}
+
+plot(df$startpoint,(df$retained..../(100*df$binsize)), col = 'red', type='l', main ='Distribution with setup 6', xlab ='Bin startpoint', ylab='Proportion of particles (%)')
+lines(to_plot_x, to_plot_y, type='l')
+
 ```
 
+### Local optimization
+Local optimization seeks to find the values of the parameters that minimize a given objective function, by searching the parameter space around an initial point. I use the r function optim to estimate my parameters starting from the estimated ones with the EM-algorithm.
 
+```{r local optimization, echo=FALSE}
+mixnorm <- function(param, X){
+  return(p=param[5]*plnorm(X, param[1], param[3])+(1-param[5])*plnorm(X, param[2], param[4]))
+} #cdf mixture
 
-### Convergence of the MCMC 
+log_likelihood <- function(param){
+  res <- 0 
+  for(i in 1:52){
+    res <- res + int_size[i]*log(mixnorm(param, df$endpoint[i]) - mixnorm(param, df$startpoint[i]))}
+  return(-res)
+}
 
-In *Figure7*, the first five plots show the values of the parameters after removing the burn-in period (the first 1000 values in this case). If the MCMC algorithm is working well, one would expect to see convergence of the parameter values over time, indicating that the chain has explored the parameter space and settled into a stable distribution. However, for all of the parameters, one does not see clear convergence over the course of the chain.
-
-The last plot in *Figure7* shows the acceptance probability of the proposals, with the mean value shown in red. Ideally, the acceptance probability should be in the range of 10% to 50%, indicating that the proposals are exploring the space effectively. However, in that case, the acceptance probability is quite high, indicating that the chain is not exploring the space efficiently.
-
-These issues with the MCMC procedure likely explains why the parameter estimates do not appear to improve in *Figure6*. I would need to investigate further to determine the cause of these problems and identify strategies for improving the performance of the MCMC algorithm.
-
-
-```{r fig.align="center", fig.cap="Figure 7: MCMC convergence"}
-par(mfrow = c(2,3))
-plot(posterior[,1], type="l", main ='Values of mu1', xlab = 'Iterations', ylab ='mu1')
-plot(posterior[,2], type="l", main ='Values of mu2', xlab = 'Iterations', ylab ='mu2')
-plot(posterior[,3], type="l", main ='Values of sigma1', xlab = 'Iterations', ylab ='sigma1')
-plot(posterior[,4], type="l", main ='Values of sigma2', xlab = 'Iterations', ylab ='sigma2')
-plot(posterior[,5], type="l", main ='Values of p', xlab = 'Iterations', ylab ='p')
-plot(prob_stock, type="l", main ='Acceptance probability', xlab = 'Iterations', ylab ='Acceptance probability')
-abline(h = mean(prob_stock), col='red')
+param <- c(mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)
+opt_param <- optim(par = param, fn = log_likelihood, gr=NULL)
 ```
 
+With local optimization, the new obtained parameters are 
+$\mu_1$ = `r opt_param$par[1]`
+$\mu_2$ = `r opt_param$par[2]`
+$\sigma_1$ = `r opt_param$par[3]`
+$\sigma_2$ =`r opt_param$par[4]`
+$p$ = `r opt_param$par[5]`
+
+*Figure4* represents in red the data distribution, in black the one with parameters estimated with the EM-algorithm and in blue the one with the optimized parameters. The blue curve fits better the data than the black one which indicates the optimization is successful.  
+
+```{r,  fig.align="center", fig.cap="Figure 4: Comparison of the distributions with the different estimated parameters"}
+to_plot_x <- seq(0, 1.5, by=0.01)
+to_plot_x <- append(to_plot_x, seq(1.5, 3, by=0.5))
+to_plot_y <- numeric(length(to_plot_x))
+to_plot_z <- numeric(length(to_plot_x))
+for (i in 1:length(to_plot_x)){
+ to_plot_y[i] <- bilognorm(to_plot_x[i], mu1_init, mu2_init, sigma1_init, sigma2_init, p_init)
+ to_plot_z[i]<- bilognorm(to_plot_x[i], opt_param$par[1], opt_param$par[2], opt_param$par[3], opt_param$par[4], opt_param$par[5])}
+
+plot(df$startpoint,(df$retained..../(100*df$binsize)), col = 'red', type='l', main ='Comparison of the models', xlab ='Bin startpoint', ylab='Proportion of particles (%)')
+lines(to_plot_x, to_plot_y, type='l')
+lines(to_plot_x, to_plot_z, type = 'l', col='blue')
+```
 
 ### Parametric bootstrap
 In this section, a parametric bootstrap algorithm [2] is implemented to assess if the data truly comes from a mixture of lognormal distributions. The purpose of the algorithm is to sample from the fitted distribution using the estimated parameters, and then calculate the Kolmogorov-Smirnov statistic, denoted by $T$. To do so, I sample from the fitted distribution with the estimated parameters. I use the Kolmogorov-Smirnov statistic $T = \sup_x \Big| \widehat{F}_N(x) - F_\widehat{\lambda}(x) \Big|$, where one assumes that under $H_0$ the estimated parameters $\widehat{\lambda}$ are consistent to the real parameters ${\lambda}_0$.
@@ -546,12 +396,13 @@ T_stat <- function(xn, mu1, mu2, sigma1, sigma2,p){
 }
 
 
+
 #we use the parameters we estimated before
-mu1_boot <- new_param[2]
-mu2_boot <- new_param[3]
-sigma1_boot <- new_param[4]
-sigma2_boot <- new_param[5]
-p_boot <- new_param[1]
+mu1_boot <- opt_param$par[1]
+mu2_boot <- opt_param$par[2]
+sigma1_boot <- opt_param$par[3]
+sigma2_boot <- opt_param$par[4]
+p_boot <- opt_param$par[5]
 T_0 <- T_stat(X, mu1_boot, mu2_boot, sigma1_boot, sigma2_boot, p_boot) #ok 
 
 Bootstrap <- function(xn, T_0, mu1, mu2, sigma1, sigma2, p, B){
@@ -561,17 +412,11 @@ Bootstrap <- function(xn, T_0, mu1, mu2, sigma1, sigma2, p, B){
   #Bootstrap
   T_boot <- rep(NA, B)
   x_resamples <- matrix(NA, nrow = B, ncol = n) #to put our resamples
-  Y <- matrix(NA, nrow = B, ncol = n) 
   for (i in 1:B) {
     x_resamples[i,] <- sample(xn, replace = TRUE)
   }
   for(i in 1:B){
-    #Y <- numeric(length = length(x_resamples[i,]))
-    for (k in 1:length(x_resamples[i,])){
-    if (x_resamples[i,][k]>0){
-      Y[i] <- log(x_resamples[i,][k])}}
-
-    param = estimate(x_resamples[i,], p, mu1, mu2, sigma1, sigma2)
+    param <- estimate(x_resamples[i,], p, mu1, mu2, sigma1, sigma2)
     mu1_estim <- param[1]
     mu2_estim <- param[2]
     sigma1_estim <- param[3]
@@ -587,21 +432,18 @@ Bootstrap <- function(xn, T_0, mu1, mu2, sigma1, sigma2, p, B){
   return((1/(B+1))*(s))
 }
 
-Bootstrap(new_X, T_0, mu1, mu2, sigma1, sigma2, p, 100)
-#b <- numeric(5)
-#for(i in 1:5){
-  #b[i] <- Bootstrap(X, T_0, mu1, mu2, sigma1, sigma2, p, 50)}
-#boxplot(b, main ='P-value of the parametric bootstrap boxplot')
+
+b <- Bootstrap(X, T_0, mu1, mu2, sigma1, sigma2, p, 10)
+
 ```
 
-The obtained p-value is of 0.99 so I don't reject the null hypothesis. In other words, one concludes that the hypothesis that our data comes from a mixture of two lognormal distributions is not rejected.
+The obtained p-value is of `r b` so I don't reject the null hypothesis. In other words, one concludes that the hypothesis that our data comes from a mixture of two lognormal distributions is not rejected.
 
-## 5. Discussion and conclusion
+## 4. Discussion and conclusion
 Throughout this project, I have focused on the mixture of two lognormal distributions as it fits the data well, and my parametric bootstrap algorithm did not reject it. Estimating the parameters of this distribution is challenging, as there is no closed-form formula for the maximum likelihood estimate. I have used a combination of the EM algorithm and local optimization to estimate the parameters, which resulted in a slightly improved fit of the model. The initial parameters for the EM algorithm were chosen based on descriptive statistics and provided a satisfactory starting point for the optimization.
 
-Although the MCMC procedure was expected to further refine the parameter estimates, it failed to converge. The acceptance probability was high, indicating that the parameters space was not adequately explored. To improve the algorithm, I could try using a proposal distribution other than the Gaussian or adjust the standard deviation of the parameters to explore more of the space. Overall, this project demonstrates the importance of using multiple methods to estimate parameters and assess the goodness of fit of a distribution.
 
-## 6. References
+## 5. References
 [1] https://hal.inria.fr/inria-00405714/document \\
 
 [2] https://github.com/TMasak/StatComp/blob/master/Notes/10_Bootstrap.Rmd, section 'Parametric bootstrap and goodness of fit' \\
