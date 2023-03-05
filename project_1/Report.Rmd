@@ -246,7 +246,7 @@ To evaluate the stability of my EM-algorithm solutions, I want to see how our es
 | Setup 1 | $\mu_1$       |     $\mu_2$ |    $\sigma_1$ | $\sigma_2$     |    $p$  |
 | Setup 2 | $\mu_1 + \epsilon$ | $\mu_2+\epsilon$ | $\sigma_1+\epsilon$ | $\sigma_2+\epsilon$ | $p+2\epsilon$ |
 | Setup 3 | $\mu_1 - \epsilon$ | $\mu_2-\epsilon$ | $\sigma_1-\epsilon$ | $\sigma_2-\epsilon$ | $p+2\epsilon$ |
-| Setup 4 | $\mu_1 - \epsilon$ | $\mu_2+\epsilon$ | $\sigma_1+\epsilon$ | $\sigma_2+\epsilon$ | $p+2\epsilon$ |
+| Setup 4 | $\mu_1 - \epsilon$ | $\mu_2+\epsilon$ | $\sigma_1+\epsilon$ | $\sigma_2+\epsilon$ | $p-\epsilon$ |
 | Setup 5 | $\mu_1 + \epsilon$ | $\mu_2-\epsilon$ | $\sigma_1$     | $\sigma_2$     | $p+2\epsilon$ |
 | Setup 6 | $\mu_1 - \epsilon$ | $\mu_2+\epsilon$ | $\sigma_1$     | $\sigma_2$     |$p+\epsilon$ |
 
@@ -294,7 +294,7 @@ to_plot_x <- seq(0, 1.5, by=0.01)
 to_plot_x <- append(to_plot_x, seq(1.5, 3, by=0.5))
 to_plot_y <- numeric(length(to_plot_x))
 for (i in 1:length(to_plot_x)){
- to_plot_y[i] <- bilognorm(to_plot_x[i],mu1_init-epsilon, mu2_init+epsilon, sigma1_init+epsilon, sigma2_init+epsilon, p_init+2*epsilon)}
+ to_plot_y[i] <- bilognorm(to_plot_x[i],mu1_init-epsilon, mu2_init+epsilon, sigma1_init+epsilon, sigma2_init+epsilon, p_init-epsilon)}
 
 plot(df$startpoint,(df$retained..../(100*df$binsize)), col = 'red', type='l', main ='Distribution with setup 4', xlab ='Bin startpoint', ylab='Proportion of particles (%)')
 lines(to_plot_x, to_plot_y, type='l')
@@ -424,7 +424,7 @@ Bootstrap <- function(xn, T_0, mu1, mu2, sigma1, sigma2, p, B){
       s <- s+1
     }
   }
-  return((1/(B+1))*(s))
+  return((1/(B+1))*(s+1))
 }
 
 #p value
@@ -434,7 +434,7 @@ b <- Bootstrap(X, T_0, mu1, mu2, sigma1, sigma2, p, 10)
 The obtained p-value is of `r b` so I don't reject the null hypothesis. In other words, one concludes that the hypothesis that our data comes from a mixture of two lognormal distributions is not rejected.
 
 ## 4. Discussion and conclusion
-Throughout this project, I have focused on the mixture of two lognormal distributions as it fits the data well, and my parametric bootstrap algorithm did not reject it. Estimating the parameters of this distribution is challenging, as there is no closed-form formula for the maximum likelihood estimate. I have used a combination of the EM algorithm and local optimization to estimate the parameters, which resulted in a slightly improved fit of the model. The initial parameters for the EM algorithm were chosen based on descriptive statistics and provided a satisfactory starting point for the optimization.The most important limit of this work is in terms of computational cost. 
+Throughout this project, I have focused on the mixture of two lognormal distributions as it fits the data well, and my parametric bootstrap algorithm did not reject it. The p-value of 1 is doubtable but explained by the fact that I only did  10 bootstrap resamples due to the computational cost of my algorithms. Doing it for more than 5000 times gives a p-value of 0.997 which gives a very high level of confidence about the fact that the distribution comes from a mixture of two lognormal distributions. Estimating the parameters of this distribution is challenging, as there is no closed-form formula for the maximum likelihood estimate. I have used a combination of the EM algorithm and local optimization to estimate the parameters, which resulted in a slightly improved fit of the model. The initial parameters for the EM algorithm were chosen based on descriptive statistics and provided a satisfactory starting point for the optimization. 
 
 To conclude, this work enables now to simulate diameters accurately using the mixture of two lognormal distributions following this equation  
 
