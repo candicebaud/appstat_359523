@@ -184,33 +184,48 @@ improved_model_2 <- glm(formula = purchase ~ visitor_type + traffic_type + page_
     log_prod_related_duration + log_page_values + sqrt_exit + 
     sqrt_bounce  + sqrt_time_duration,  family = "binomial", data = df)
 summary(improved_model_2)
-Anova(improved_model_2, type = 'II', test ='LR') #with this one all the variables are significative under the 5%
+anova_table <- Anova(improved_model_2, type = 'II', test ='LR') #with this one all the variables are significative under the 5%
 
 #odds ratio and confidence intervals
 table_results_OR <- exp(cbind(OR = coef(improved_model_2), confint(improved_model_2)))
 ```
-To build the model, I started by computing the full model without the added variables and compared it to the one with added variables to assess their relevance. The model with added variables has a smaller AIC (`r m0$aic` compared to `r m0_0$aic`) as well as a smaller deviance (`r m0$deviance` compared to `r m0_0$deviance`) which gives confidence in those new variables.
+
+To build the model, I start by computing the full model without the added variables and compared it to the one with added variables to assess their relevance. The model with added variables has a smaller AIC (`r m0$aic` compared to `r m0_0$aic`) as well as a smaller deviance (`r m0$deviance` compared to `r m0_0$deviance`) which gives confidence in those new variables.
 
 Then, I used the function *stepAIC* of the MASS package to do AIC-based model selection. This creates a basis model that I then improve by looking at the significance of the variables with the *Anova* command. 
 
+Summary of the final model
+```{r, echo=FALSE}
+summary(improved_model_2)
+```
 
+Odds ratio and confidence intervals
+```{r, echo=FALSE}
+table_results_OR
+```
+
+Anova of the final model
+```{r, echo=FALSE}
+anova_table
+```
 
 # 4. Model diagnostics
 to comment
-```{r residuals diagnostics, echo=FALSE}
+```{r, fig.align="center", fig.cap="Figure: Diagnostics"}
+par(mfrow=c(2,2))
 plot(improved_model_2)
 
 plot(improved_model_2$fitted.values, improved_model_2$residuals, main = 'residuals')
 ```
 
 # 5. Model comparison 
-```{r model comparison, echo=FALSE}
+```{r, fig.align="center", fig.cap="Figure: ROC curves : initial model without added variables (red), model with variable selection (blue), final model (green)"}
 library(pROC)
 invisible(plot(roc(df$purchase,
                    fitted(m0_0)),
                col = "red", 
                print.auc = F,
-               main = "ROC curves: logistic model with all the initial variables (red) vs. logistic model with variable selection (blue) vs final logistic model (green)"))
+               main = "ROC curves"))
 invisible(plot(roc(df$purchase,
                    fitted(model)),
                print.auc = F, 
@@ -252,7 +267,7 @@ return(mean(AUC))
 
 
 # 6. Interpretation
-
+statistical significance + practical significance : to do
 
 
 # 7. Discussion

@@ -338,6 +338,7 @@ m0$deviance
 
 m0_0$aic
 
+par(mfrow=c(2,2))
 plot(m0$residuals, m0$fitted.values)
 ```
 
