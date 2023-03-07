@@ -1,0 +1,524 @@
+---
+title: "rough work project 2"
+author: "Sciper 359523"
+date: "2023-03-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE)
+```
+
+```{r working directory and data, echo=FALSE, include=FALSE}
+lapply(c("dplyr","chron","ggplot2","tidyr","questionr","survival","forcats","tidyselect",
+         "data.table","table1","lubridate", "ggpubr","viridis","finalfit","survminer",
+         "ggpubr", "ggthemes", "gridExtra", "rstatix","stringr",
+         "wesanderson","kableExtra", "naniar","boot","scales","ggsci", "stringr",
+         "Hmisc","DescTools","swimplot", 'stats', 'EnvStats', 'finalfit'), 
+       library, character.only=TRUE)
+
+Sys.setlocale("LC_TIME", "English")
+load("C:/Users/candi/Desktop/ETUDES/EPFL1A/semestre 2/applied statistics/applied_stat_359523/project_2/2_online_shopping.RData")
+set.seed(435) #set the seed for reproducible results
+```
+
+
+# Descriptive statistics
+```{r, echo=FALSE}
+df<-Data
+summary(df)
+
+#put everything in order (rename, type of var)
+df <- df %>% mutate(
+  #from the e-commerce website
+  administrative = as.numeric(Administrative) %>% ff_label("Number of administrative pages visited"),
+  administrative_duration = as.numeric(Administrative_Duration)%>% ff_label("Time spent on administrative pages"),
+  informational = as.numeric(Informational) %>% ff_label("Number of informational-type pages visited"),
+  informational_duration =as.numeric(Informational_Duration) %>% ff_label("Time spent on informational-type pages"),
+  product_related = as.numeric(ProductRelated) %>% ff_label("Number of product related type pages visited"),
+  product_related_duration = as.numeric(ProductRelated_Duration)%>% ff_label(" Time spent on product related type pages"),
+  #derived from a date
+  month = as.factor(Month) %>% ff_label("Month of the session"),
+  weekend = as.factor(Weekend) %>% ff_label("Indicator of the session during a week-end"),
+  special_day = as.numeric(SpecialDay)%>% ff_label("Closeness to a Special day"),
+  #from google analytics
+  bounce_rates = as.numeric(BounceRates) %>% ff_label("Average bounce rate of pages visited"),
+  exit_rates = as.numeric(ExitRates) %>% ff_label('Average exit of pages visited'),
+  page_values= as.numeric(PageValues) %>% ff_label('Average page value of pages visited'),
+  operating_systems = as.factor(OperatingSystems)%>% ff_label("Operating systems of the user"),
+  browser = as.factor(Browser)%>% ff_label("Browser of the user"),
+  region = as.factor(Region) %>% ff_label("Geographic region"),
+  traffic_type = as.factor(TrafficType)%>% ff_label("Traffic type"),
+  visitor_type = as.factor(VisitorType)%>% ff_label("Visitor type"),
+  purchase = as.factor(Revenue)%>% ff_label("Indicator of a purchase made or not")
+)
+
+#final dataframe
+df <- df %>% select(purchase,visitor_type,traffic_type,region,browser, operating_systems,page_values, exit_rates, bounce_rates, special_day, weekend, month, product_related_duration, product_related, informational_duration, informational,administrative_duration, administrative)
+
+```
+
+```{r, echo=FALSE}
+#descriptive statistics 
+1 - sum(df$purchase==F)/length(df$purchase) #percentage of purchase
+
+#how variables behave
+#pairs(df)
+
+#visitor_type
+df%>%group_by(purchase, visitor_type)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=purchase, y=freq, fill = visitor_type )) + geom_bar(stat="identity", position ='dodge')
+
+df%>%group_by(visitor_type, purchase)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=visitor_type, y=freq, fill = purchase )) + geom_bar(stat="identity", position ='dodge')
+
+#traffic_type
+df%>%group_by(purchase, traffic_type)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=purchase, y=freq, fill = traffic_type )) + geom_bar(stat="identity", position ='dodge')
+
+df%>%group_by(traffic_type, purchase)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=traffic_type, y=freq, fill = purchase )) + geom_bar(stat="identity", position ='dodge')
+#maybe do a pie chart instead ? 
+
+
+#region
+df%>%group_by(purchase, region)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=purchase, y=freq, fill = region )) + geom_bar(stat="identity", position ='dodge')
+
+df%>%group_by(region, purchase)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=region, y=freq, fill = purchase )) + geom_bar(stat="identity", position ='dodge')
+
+
+#browser
+df%>%group_by(purchase, browser)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=purchase, y=freq, fill = browser )) + geom_bar(stat="identity", position ='dodge')
+
+df%>%group_by(browser, purchase)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=browser, y=freq, fill = purchase )) + geom_bar(stat="identity", position ='dodge')
+
+#operating_systems
+df%>%group_by(purchase, operating_systems)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=purchase, y=freq, fill = operating_systems )) + geom_bar(stat="identity", position ='dodge')
+
+df%>%group_by(operating_systems, purchase)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=operating_systems, y=freq, fill = purchase )) + geom_bar(stat="identity", position ='dodge')
+
+#page_values
+df%>%group_by(purchase, page_values)%>% ggplot(aes(x=purchase, y=page_values)) + geom_boxplot()
+
+#exit_rates
+df%>%group_by(purchase, exit_rates)%>% ggplot(aes(x=purchase, y=exit_rates)) + geom_boxplot()
+
+#bounce_rates
+df%>%group_by(purchase, bounce_rates)%>% ggplot(aes(x=purchase, y=bounce_rates)) + geom_boxplot()
+
+#special_day
+df%>%group_by(purchase, special_day)%>% ggplot(aes(x=purchase, y=special_day)) + geom_boxplot()
+
+#weekend 
+df%>%group_by(purchase, weekend)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=purchase, y=freq, fill = weekend )) + geom_bar(stat="identity", position ='dodge')
+
+df%>%group_by(weekend, purchase)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=weekend, y=freq, fill = purchase )) + geom_bar(stat="identity", position ='dodge')
+
+
+#month
+df%>%group_by(purchase, month)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=purchase, y=freq, fill = month )) + geom_bar(stat="identity", position ='dodge')
+
+df%>%group_by(month, purchase)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=month, y=freq, fill = purchase )) + geom_bar(stat="identity", position ='dodge')
+
+#productduration
+df%>%group_by(purchase, product_related_duration)%>% ggplot(aes(x=purchase, y=product_related_duration)) + geom_boxplot()
+
+#product_related
+df%>%group_by(purchase, product_related)%>% ggplot(aes(x=purchase, y=product_related)) + geom_boxplot()
+
+#informational_duration
+df%>%group_by(purchase, informational_duration)%>% ggplot(aes(x=purchase, y=informational_duration)) + geom_boxplot()
+
+#informational
+df%>%group_by(purchase, informational)%>% ggplot(aes(x=purchase, y=informational)) + geom_boxplot()
+
+#administrative_duration
+df%>%group_by(purchase, administrative_duration)%>% ggplot(aes(x=purchase, y=administrative_duration)) + geom_boxplot()
+
+#administrative
+df%>%group_by(purchase, administrative)%>% ggplot(aes(x=purchase, y=administrative)) + geom_boxplot()
+
+#correlations
+panel.corrplot <- function(x, y, digits = 2, prefix = "", cex.cor, ...) {
+    usr <- par("usr")
+    on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    Cor <- abs(cor(x, y)) 
+    method = "color"
+    txt <- paste0(prefix, format(c(Cor, 0.123456789), digits = digits)[1])
+    if(missing(cex.cor)) {
+        cex.cor <- 0.4 / strwidth(txt)
+    }
+    text(0.5, 0.5, txt,
+         cex = 1 + cex.cor * Cor)
+}
+panel.hist <- function(x, ...) {
+    usr <- par("usr")
+    on.exit(par(usr))
+    par(usr = c(usr[1:2], 0, 1.5))
+    his <- hist(x, plot = FALSE)
+    breaks <- his$breaks
+    nB <- length(breaks)
+    y <- his$counts
+    y <- y/max(y)
+    rect(breaks[-nB], 0, breaks[-1], y, col = rgb(0, 1, 1, alpha = 0.5), ...)
+}
+
+
+# Plotting the correlation matrix
+# var
+suppressWarnings(pairs(df$purchase ~ df$visitor_type + df$traffic_type + df$region + df$browser + df$operating_systems + df$page_values + df$exit_rates + df$bounce_rates,
+      upper.panel = panel.corrplot,   
+      lower.panel = panel.smooth, 
+      diag.panel = panel.hist,))
+
+#ecommercevar
+suppressWarnings(pairs(df$purchase ~ df$administrative + df$administrative_duration + df$informational + df$informational_duration + df$product_related + df$product_related_duration,
+      upper.panel = panel.corrplot,   
+      lower.panel = panel.smooth, 
+      diag.panel = panel.hist,))
+
+#derived from date
+suppressWarnings(pairs(df$purchase ~ df$month + df$weekend,
+      upper.panel = panel.corrplot,   
+      lower.panel = panel.smooth, 
+      diag.panel = panel.hist,))
+
+
+#exporation for transformations
+plot(density(log(df$page_values))) #better not to have too much overdispersed values
+plot(density(sqrt(df$page_values)))#still a bit overdispersed
+
+plot(density((df$exit_rates))) #do I need to put the log ? not sure
+plot(density(log(df$exit_rates)))
+plot(density(sqrt(df$exit_rates))) #sqrt seems more appropriate than the log
+
+plot(density(df$bounce_rates))
+plot(density(log(df$bounce_rates)))#log seems better because symmetric but changes the scale 
+plot(density(sqrt(df$bounce_rates)))
+
+plot(density(df$special_day))
+plot(density(log(df$special_day)))#seems strange
+plot(density(sqrt(df$special_day)))#not a huge difference 
+
+plot(density(df$product_related_duration)) #huge values and very dispersed
+plot(density(log(df$product_related_duration))) #better scaled, more symmetric
+plot(density(sqrt(df$product_related_duration))) #still a bit overdispersed and not symmetric
+
+plot(density(df$product_related)) #huge values and very dispersed
+plot(density(log(df$product_related))) #better scaled, more symmetric
+plot(density(sqrt(df$product_related))) #still a bit overdispersed and not symmetric
+
+plot(density(df$informational_duration)) #huge values and very dispersed
+plot(density(log(df$informational_duration))) #better scaled, more symmetric
+plot(density(sqrt(df$informational_duration))) #not good
+
+plot(density(df$informational)) #huge values and very dispersed
+plot(density(log(df$informational))) #better scaled, more symmetric but strange
+plot(density(sqrt(df$informational))) #strange
+
+plot(density(df$administrative)) #huge values and very dispersed
+plot(density(log(df$administrative))) #strange
+plot(density(sqrt(df$administrative))) #strange
+
+plot(density(df$administrative_duration)) #huge values and very dispersed
+plot(density(log(df$administrative_duration))) #best
+plot(density(sqrt(df$administrative_duration))) #still too dispersed
+
+```
+
+
+
+
+#transformations/strange values
+```{r, echo=FALSE}
+#histograms
+hist(df, freq = F)
+
+#we could transform some variables with log : pb variables with 0 values
+df <- df %>% mutate(
+  log_exit = log(exit_rates +1 ),
+  log_bounce = log(bounce_rates +1),
+  log_administrative = log(administrative +1),
+  log_time_admin = log(administrative_duration +1),
+  log_time_duration = log(product_related_duration +1)
+)
+
+hist(df, freq = F)
+
+hist(df$log_exit, freq = F)
+hist(df$log_bounce, freq = F)
+hist(df$log_time_duration, freq = F)
+
+summary(df$month)
+unique(df$month)
+
+summary(df)
+
+#sqrt transformation
+df <- df %>% mutate(
+  sqrt_exit = sqrt(exit_rates),
+  sqrt_bounce = sqrt(bounce_rates),
+  sqrt_administrative = sqrt(administrative),
+  sqrt_time_admin = sqrt(administrative_duration),
+  sqrt_time_duration = sqrt(product_related_duration)
+)
+
+hist(df$sqrt_exit, freq= F)
+hist(df$log_exit, freq =F)
+hist(df)
+
+#myboxcox <- function(x, l){return(1) #to do}
+
+
+#boxcox transformation 
+#df <- df %>% mutate(
+  #boxcox_exit = my_boxcox(exit_rates),
+  #boxcox_bounce = my_boxcox(bounce_rates),
+  #boxcox_administrative = my_boxcox(administrative),
+  #boxcox_time_admin = my_boxcox(administrative_duration),
+  #boxcox_time_duration = my_boxcox(product_related_duration))
+
+#interaction terms
+df <- df %>% mutate(
+  inter_product = product_related * product_related_duration,
+  inter_informational = informational * informational_duration,
+  inter_admin = administrative * administrative_duration
+)
+
+```
+
+
+
+
+#build the model
+
+```{r, echo=FALSE}
+df <- df %>% mutate(
+  purchase = as.factor(case_when(
+    purchase == F ~ 0,
+    purchase == T ~ 1
+  )))
+
+#naive model with all the variables 
+m0 <- glm(purchase ~., family = 'binomial', data = df)
+summary(m0)
+anova(m0)
+m0_1 <- glm(purchase ~., family = binomial(link='logit'), data = df)
+plot(m0_1)
+plot(m0)
+plot(m0$fitted.values)
+max(m0$residuals)
+min(m0$residuals)
+
+plot(m0$fitted.values, m0$residuals, ylim=c(-10,10))
+
+exp(cbind(OR = coef(m0), confint(m0)))
+
+#unique(df$operating_systems)
+m0$aic
+m0$deviance
+
+plot(m0$residuals, m0$fitted.values)
+```
+
+
+```{r, echo=FALSE}
+m1 <- glm(purchase ~ visitor_type + bounce_rates + page_values + administrative + product_related + product_related_duration + special_day, family = 'binomial', data = df )
+
+m2 <- glm(purchase ~ visitor_type + log_bounce + page_values + log_administrative + product_related + log_time_duration + special_day, family = 'binomial', data = df )
+
+summary(m1)
+anova(m1)
+anova(m0, m1)
+summary(m2)
+
+Anova(m1, type = 'II', test ='LR')
+m1$aic
+m1$deviance
+
+coef(m1)
+
+x <- seq(0, 700, length=1000)
+plot(df$product_related, df$purchase,ylim=c(-0.5,1.5))
+abline(h=c(0,1), lty=2, col="gray50")
+points(x, plogis(coef(m1)[1]+x*coef(m1)[5]), type="l")
+m1
+
+df %>% select(product_related, purchase) %>%filter(purchase == 0)
+
+
+#library(glmtoolbox)
+#model <- stepCriterion(m0, criterion = 'aic',  direction = c("forward", "backward"))
+
+library('MASS')
+model <- stepAIC(m0,direction = c("both", "backward", "forward"), trace = FALSE)
+summary(model)
+
+plot(m0)
+plot(model) #c'est naze
+
+library(pROC)
+invisible(plot(roc(df$purchase,
+                   fitted(m0)),
+               col = "red", 
+               print.auc = T,
+               main = "ROC curves: logistic model m0 (red) vs. logistic model with variable selection (blue)"))
+
+invisible(plot(roc(df$purchase,
+                   fitted(model)),
+               print.auc = T, 
+               col = "blue", 
+               add = T))
+#auc is close to the teacher one
+
+#est-ce que le modèle est bon comparé à un modèle très simple ? 
+simple_model <- glm(purchase ~ log_time_duration, family = binomial, data=df)
+summary(simple_model)
+
+invisible(plot(roc(df$purchase,
+                   fitted(m0)),
+               col = "red", 
+               print.auc = T,
+               main = "ROC curves: logistic model m0 (red) vs. logistic model with variable selection (blue)"))
+invisible(plot(roc(df$purchase,
+                   fitted(simple_model)),
+               print.auc = T, 
+               col = "blue", 
+               add = T))
+
+#comparaison des modèles 
+m0$aic
+model$aic
+Anova(m0, type = 'II', test ='LR')
+Anova(model, type = 'II', test ='LR') #bounce rate seems doubtable
+
+model
+#auc seems good
+
+
+plot(simple_model)
+plot(model)
+
+
+improved_model <- glm(purchase ~ visitor_type + traffic_type + page_values + 
+    exit_rates + month + product_related_duration + 
+    administrative + log_administrative + log_time_admin + log_time_duration + 
+    sqrt_exit + sqrt_bounce + sqrt_administrative + sqrt_time_admin + 
+    sqrt_time_duration + inter_product, family = "binomial", 
+    data = df)
+summary(improved_model)
+Anova(improved_model, type = 'II', test ='LR')
+
+improved_model_2 <- glm(purchase ~ visitor_type + traffic_type + page_values + 
+    exit_rates + month + product_related_duration + 
+    administrative + log_administrative + log_time_admin + log_time_duration + 
+    sqrt_exit + sqrt_administrative + sqrt_time_admin + 
+    sqrt_time_duration, family = "binomial", 
+    data = df)
+
+summary(improved_model_2)
+Anova(improved_model_2, type = 'II', test ='LR') #with this one all the variables are significative under the 5%
+
+#comparison
+improved_model_2$aic
+improved_model_2$deviance
+
+improved_model$aic
+improved_model$deviance
+
+model$aic
+model$deviance
+
+invisible(plot(roc(df$purchase,
+                   fitted(model)),
+               col = "red", 
+               print.auc = T,
+               main = "ROC curves: logistic model with var selection (red) vs. improved model (blue) vs improved_model_2 (green)"))
+invisible(plot(roc(df$purchase,
+                   fitted(improved_model)),
+               print.auc = T, 
+               col = "blue", 
+               add = T))
+invisible(plot(roc(df$purchase,
+                   fitted(improved_model_2)),
+               print.auc = T, 
+               col = "green", 
+               add = T))
+#they are equivalent in terms of AIC
+
+plot(improved_model_2$fitted.values, improved_model_2$residuals, ylim=c(-10,10))
+min(improved_model_2$residuals)
+test <- as.data.frame(improved_model_2$residuals)
+
+test %>% filter(test == min(test))
+
+df%>% filter(page_values == max(df$page_values))
+df%>% filter(page_values == min(df$page_values))
+
+df%>% filter(product_related_duration == max(df$product_related_duration))
+df%>% filter(product_related_duration == min(df$product_related_duration))
+
+```
+
+m0 significative : returning visitor type, page_values, month, product_related_duration, administrative, log_time_duration, sqrt_administrative, sqrt_time_duration 
+almost signif : log_administrative, log_time_admin
+
+
+
+```{r, echo=FALSE}
+numeric_var <- df %>% select_if(is.numeric) 
+probabilities <- predict(m0, type = "response") #pb the probabilities are negative 
+sum(probabilities>0)
+
+predictors <- colnames(numeric_var) 
+
+mydata <- df %>%
+  mutate(logit = log(probabilities/(1-probabilities))) %>%
+  gather(key = "predictors", value = "predictor.value", -logit)
+
+ggplot(mydata, aes(logit, predictor.value))+
+  geom_point(size = 0.5, alpha = 0.5) +
+  geom_smooth(method = "loess") + 
+  theme_bw() + 
+  facet_wrap(~predictors, scales = "free_y")
+```
+
+
+#auc
+```{r, echo=FALSE}
+#code provided
+library(pROC)
+AUC_eval <- function(gmodel,Data){
+set.seed(517)
+Folds <- matrix(sample(1:dim(Data)[1]), ncol=5)
+AUC <- rep(0,5)
+for(k in 1:5){
+train <- Data[-Folds[,k],]
+test <- Data[Folds[,k],]
+my_gm <- glm(gmodel$formula, family="binomial", data=train)
+test_pred <- predict(my_gm, newdata = test, type="response")
+AUC[k] <- auc(test$purchase,test_pred)
+}
+return(mean(AUC))
+}
+
+#gm1 <- glm(purchase~., family="binomial", data=Data)
+#AUC_eval(gm1,df)
+
+#il y a des problèmes 
+
+```
+
+
+

@@ -1,0 +1,76 @@
+---
+title: "Report Project 2"
+author: "Sciper 359523"
+date: "2023-03-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE)
+```
+
+```{r working directory and data, echo=FALSE, include=FALSE}
+lapply(c("dplyr","chron","ggplot2","tidyr","questionr","survival","forcats","tidyselect",
+         "data.table","table1","lubridate", "ggpubr","viridis","finalfit","survminer",
+         "ggpubr", "ggthemes", "gridExtra", "rstatix","stringr",
+         "wesanderson","kableExtra", "naniar","boot","scales","ggsci", "stringr",
+         "Hmisc","DescTools","swimplot", 'stats', 'EnvStats', 'finalfit'), 
+       library, character.only=TRUE)
+
+Sys.setlocale("LC_TIME", "English")
+load("C:/Users/candi/Desktop/ETUDES/EPFL1A/semestre 2/applied statistics/applied_stat_359523/project_2/2_online_shopping.RData")
+set.seed(435) #set the seed for reproducible results
+```
+
+# 1. Introduction 
+In today's data-driven world, businesses are constantly seeking new ways to leverage customer data to make informed decisions and drive growth[1]. One area where data analysis can prove particularly useful is in forecasting customer purchases. By analyzing data on user behavior and purchase history, businesses can gain insights into what products or services customers are likely to buy in the future. Users' reactions are therefore scrutinized to improve sales by better tailoring the ads. 
+
+In this report, we work with a data set providing us several variable such as an outcome variable we want to model, which is a binary indicator of a purchase being made or not. The other variables, that will help build the model are mostly divided between the users' actions recorded by the websites, and the user's personal characteristics.    
+
+In this report, we explore the use of a logistic regression model to predict purchase behavior based on user actions and personal characteristics. Our data set includes several variables, including a binary indicator of whether a purchase was made or not, as well as other user behavior and personal characteristics that serve as predictors. 
+
+The outline of the remainder of this report is as follows. We introduce the data in section 2, describe our model selection procedure in section 3 and present the final model. We analyse our model via the diagnostics in Section 4 and will compare it to other in section 5. In section 6, we analyze the model built, and we'll conclude in section 7.
+
+
+# 2. Data characteristics
+The outcome of interest is the fact that a purchase was made or not (variable *purchase*). The data set is composed of several different features that can be decomposed in three main groups :
+
+1. Data coming from the e-commerce website :
++ The number of administrative-type pages that the user visited and the time spent on them (numerical variable)
++ The number of informational-type pages that the user visited and the time spent on them (numerical variable)
++ The number of product-related-type pages that the user visited and the time spent on them (numerical variable)
+
+2. Data derived from the date :
++ The month in which the session took place (categorical variable with 10 levels)
++ An indicator of whether the session took place during the week-end or not (dummy variable)
++ An indicator between [0,1] evaluating the closeness to a special day (numerical variable)
+
+3. Data coming from Google Analytics :
++ The average bounce rate of pages visited (numerical variable)
++ The average exit rate of pages visited (numerical variable)
++ The average page value of pages visited (numerical variable)
++ The operating systems of the user (categorical variable with 8 levels)
++ The web browsers of the users (categorical variable with 13 levels)
++ The geographic region in which the use is located (categorical variable with 9 levels)
++ Where from the user arrived at the site (categorical variable with 20 levels)
++ The type of visitor (categorical variable with 3 levels)
+
+
+
+
+# 3. Model selection 
+To build the model, I started by computing the full model with all the variables in order to see which variables had a significative impact on the purchases. 
+
+
+# 4. Residuals diagnostics
+
+# 5. Model comparison 
+
+# 6. Interpretation
+
+# 7. Discussion
+
+
+
+# References
+[1] https://cmr.berkeley.edu/2018/04/facebook-ads/
