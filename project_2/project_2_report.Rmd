@@ -226,6 +226,31 @@ invisible(plot(roc(df$purchase,
 put the table with AIC, AUC and deviance 
 
 
+```{r, echo=FALSE}
+#code provided
+library(pROC)
+AUC_eval <- function(gmodel,Data){
+set.seed(517)
+Folds <- matrix(sample(1:dim(Data)[1]), ncol=5)
+AUC <- rep(0,5)
+for(k in 1:5){
+train <- Data[-Folds[,k],]
+test <- Data[Folds[,k],]
+my_gm <- glm(gmodel$formula, family="binomial", data=train)
+test_pred <- predict(my_gm, newdata = test, type="response")
+AUC[k] <- auc(test$purchase,test_pred)
+}
+return(mean(AUC))
+}
+
+#gm1 <- glm(purchase~., family="binomial", data=Data)
+#AUC_eval(improved_model_2,df)
+
+#il y a des problèmes 
+
+```
+
+
 # 6. Interpretation
 
 
