@@ -18,7 +18,7 @@ lapply(c("dplyr","chron","ggplot2","tidyr","questionr","survival","forcats","tid
        library, character.only=TRUE)
 
 Sys.setlocale("LC_TIME", "English")
-load("C:/Users/candi/Desktop/ETUDES/EPFL1A/semestre 2/applied statistics/applied_stat_359523/project_2/2_online_shopping.RData")
+load("2_online_shopping.RData")
 set.seed(435) #set the seed for reproducible results
 ```
 
