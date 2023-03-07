@@ -250,8 +250,12 @@ df <- df %>% mutate(
   log_exit = log(exit_rates +1 ),
   log_bounce = log(bounce_rates +1),
   log_administrative = log(administrative +1),
-  log_time_admin = log(administrative_duration +1),
-  log_time_duration = log(product_related_duration +1)
+  log_admin_duration = log(administrative_duration +1),
+  log_prod_related_duration = log(product_related_duration +1),
+  log_prod_related = log(product_related +1),
+  log_inf_duration = log(informational_duration+1),
+  log_inf = log(informational +1),
+  log_page_values = log(page_values +1)
 )
 
 hist(df, freq = F)
@@ -273,6 +277,7 @@ df <- df %>% mutate(
   sqrt_time_admin = sqrt(administrative_duration),
   sqrt_time_duration = sqrt(product_related_duration)
 )
+
 
 hist(df$sqrt_exit, freq= F)
 hist(df$log_exit, freq =F)
@@ -310,12 +315,14 @@ df <- df %>% mutate(
     purchase == T ~ 1
   )))
 
+m0_0 <- glm(purchase ~visitor_type + traffic_type + region + browser + operating_systems + page_values + exit_rates + bounce_rates + special_day + weekend + month + product_related_duration + product_related + informational_duration + informational + administrative_duration + administrative, family = 'binomial', data = df)
+summary(m0_0)
+
 #naive model with all the variables 
 m0 <- glm(purchase ~., family = 'binomial', data = df)
 summary(m0)
 anova(m0)
-m0_1 <- glm(purchase ~., family = binomial(link='logit'), data = df)
-plot(m0_1)
+
 plot(m0)
 plot(m0$fitted.values)
 max(m0$residuals)
@@ -328,6 +335,8 @@ exp(cbind(OR = coef(m0), confint(m0)))
 #unique(df$operating_systems)
 m0$aic
 m0$deviance
+
+m0_0$aic
 
 plot(m0$residuals, m0$fitted.values)
 ```
@@ -457,7 +466,12 @@ invisible(plot(roc(df$purchase,
                add = T))
 #they are equivalent in terms of AIC
 
-plot(improved_model_2$fitted.values, improved_model_2$residuals, ylim=c(-10,10))
+plot(improved_model_2$fitted.values, improved_model_2$residuals, ylim=c(-75,75))
+sorted_desc = sort(improved_model_2$residuals, decreasing = FALSE) #les 10 plus petites valeurs sont plus petites que -100
+sorted_asc =  sort(improved_model_2$residuals, decreasing = T)#la pus grande valeur est 63
+
+sum(improved_model_2$residuals <10 &improved_model_2$residuals >-10 )/length(improved_model_2$residuals)
+
 min(improved_model_2$residuals)
 test <- as.data.frame(improved_model_2$residuals)
 
