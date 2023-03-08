@@ -98,9 +98,46 @@ df <- df %>% select(purchase,visitor_type,traffic_type,region,browser, operating
 buy <- 100*(1 - sum(df$purchase==0)/length(df$purchase))
 ```
 
-The purchases represent `r round(buy,digits=1)` of the data set, and are at more than 75% done by returning visitors. No region seems to particularly distinguish itself but there are some noticeable tendencies depending on the browser and traffic-type used. Users who buy a product also tend to look at more pages and exit and bounce less early than the ones who don't purchase a product. They tend to spend more time in the web and to inform themselves more. Weekends and special days don't seem to have an effect on the sales which seems surprising. However, the session month seems to have a non-neglictable influence. 
+A first exploratory data analysis enables to display the correlation matrix of *figure 1* in which I only represented the most correlated features with the outcome of interest purchase. The variable page values is the one which is the most correlated with purchase and is also quite correlated with exit rates and bounce rates which are themselves highly correlated. Exit rates is quite correlated with most of the variables displayed in the figure which shows that it is an important feature, heavily linked to the other ones. 
 
-Some categorical variables contain few observations for each level so we use clustering to gather some and fit the model properly.
+```{r, fig.align="center", fig.cap="Figure 1 : Correlation matrix"}
+panel.corrplot <- function(x, y, digits = 2, prefix = "", cex.cor, ...) {
+    usr <- par("usr")
+    on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    Cor <- abs(cor(x, y)) 
+    method = "color"
+    txt <- paste0(prefix, format(c(Cor, 0.123456789), digits = digits)[1])
+    if(missing(cex.cor)) {
+        cex.cor <- 0.4 / strwidth(txt)
+    }
+    text(0.5, 0.5, txt,
+         cex = 1 + cex.cor * Cor)
+}
+panel.hist <- function(x, ...) {
+    usr <- par("usr")
+    on.exit(par(usr))
+    par(usr = c(usr[1:2], 0, 1.5))
+    his <- hist(x, plot = FALSE)
+    breaks <- his$breaks
+    nB <- length(breaks)
+    y <- his$counts
+    y <- y/max(y)
+    rect(breaks[-nB], 0, breaks[-1], y, col = rgb(0, 1, 1, alpha = 0.5), ...)
+}
+
+
+# Plotting the correlation matrix
+suppressWarnings(pairs(df$purchase ~ df$page_values + df$exit_rates + df$bounce_rates + df$product_related_duration + df$product_related + df$administrative + df$visitor_type,
+      upper.panel = panel.corrplot,   
+      lower.panel = panel.smooth, 
+      diag.panel = panel.hist,))
+```
+
+
+The purchases in the database represent `r round(buy,digits=1)`% of the data set, and are at more than 75% done by returning visitors. No region seems to particularly distinguish itself but there are some noticeable tendencies depending on the browser and traffic-type used. Users who buy a product also tend to look at more pages and exit and bounce less early than the ones who don't purchase a product. They tend to spend more time in the web and to inform themselves more. Weekends and special days don't seem to have an effect on the sales which seems surprising. However, the session month seems to have a non-neglictable influence. 
+
+Some categorical variables contain few observations for each level so we use clustering to gather levels and fit the model more properly.
 
 ```{r clustering, echo=FALSE, include = FALSE}
 #for traffic_type
@@ -275,11 +312,12 @@ anova_table <- Anova(improved_model_2, type = 'II', test ='LR') #with this one a
 
 #odds ratio and confidence intervals
 table_results_OR <- exp(cbind(OR = coef(improved_model_2), confint(improved_model_2)))
+
 ```
 
 To build the model, I start by computing the full model without the added variables and compared it to the one with added variables to assess their relevance. The model with added variables has a smaller AIC (`r round(m0$aic, digits =0)` compared to `r round(m0_0$aic, digits=0)`) as well as a smaller deviance (`r round(m0$deviance, digits=0)` compared to `r round(m0_0$deviance, digits=0)`) which gives confidence in those new variables.
 
-Then, I used the function *stepAIC* of the MASS package to do AIC-based model selection. This creates a basis model that I then improve by looking at the significance of the variables with the *Anova* command. This enabled me to build two improved models step by adding variables one by one. The final model includes the variables: visitor_type, grouped_traffic_type, page_values, exit_rates, bounce_rates, month, product_related_duration, administrative, log_prod_related_duration, log_page_values, sqrt_exit, sqrt_bounce, sqrt_time_duration. They are all significant at the 5% level and most of them even at the below 0.1% evel which gives confidence in the model built. The AIC of our final model is  `r round(improved_model_2$aic, digits=0)` and the deviance is `r round(improved_model$deviance, digits=0)`. 
+Then, I used the function *stepAIC* of the MASS package to do AIC-based model selection. This creates a basis model that I then improve by looking at the significance of the variables with the *Anova* command. This enabled me to build an improved model by adding variables one by one and simultaneously testing their significance. The final model includes the variables: the visitor type, the traffic type, the page values and its log, the exit rates and their square root, the bounce rates and their square root, the session month, the time spent looking at product-related information and its log and square root, the number of administrative pages looked at. They are all significant at the 5% level and most of them even at the below 0.1% level which gives confidence in the model built. The AIC of our final model is  `r round(improved_model_2$aic, digits=0)` and the deviance is `r round(improved_model$deviance, digits=0)`. 
 
 
 ```{r, echo=FALSE, include = FALSE}
@@ -293,6 +331,15 @@ summary(improved_model_2)
 table_results_OR
 ```
 
+The table below reports the three most practically significant variables (in terms of odds ratio) and their confidence interval.
+
+|                    | OR       | 2.5%     | 97.5%       | 
+|--------------------|----------|----------|-------------|
+| bounce rates       | 9.16e+08 | 1.05e+01 | 2.58e+16    | 
+| sqrt(exit rates)   | 5.23e+03 | 2.68e+01 | 1.15e+06    | 
+| log(page values)   | 3.73     | 3.47     | 4.01        | 
+
+They are statistically significant (with the Type II test with Anova and because 0 doesn't belong to the confidence interval). They are also practically significant because their odds ratio are greater than 1. Half of variables have odds ratio greater than 1 in the overall table and the rest mostly belongs to [0.2, 0.9]. Only the untransformed exit rate variable doesn't seem practically significant even though it is statistically significant, since the odds ratio associated is of order $10^{-18}$. The fact that the model also contains its square root captures most of the effect of the variable.
 
 ```{r, echo=FALSE, include= FALSE}
 #Anova of the final model
@@ -300,20 +347,20 @@ anova_table
 ```
 
 # 4. Model diagnostics
-*Figure 1* shows the diagnostics of the model. On the upper left panel, one can see the characteristic two-bands pattern associated with logisitic regressions. There are several visible outliers that appear to be influential on the model as identified in the *scale-location* and *residuals vs leverage panels*. The normal QQplot for the logistic regression also identifies some outliers in the upper tail.
+*Figure 2* shows the diagnostics of the model. On the upper left panel, one can see the characteristic two-bands pattern associated with logisitic regressions. There are several visible outliers that appear to be influential on the model as identified in the *scale-location* and *residuals vs leverage panels*. The normal QQplot for the logistic regression also identifies some outliers in the upper tail.
 
-```{r, fig.align="center", fig.cap="Figure 1 : Diagnostics"}
+```{r, fig.align="center", fig.cap="Figure 2 : Diagnostics"}
 par(mfrow=c(2,2))
 plot(improved_model_2)
 ```
 
 # 5. Model comparison 
-In this section, I compare the final model to the initial models to see to what extent the work on the base helped us build a better model. The red curve represents the initial model without the added variables (ie the log and sqrt transormations). The black curve represents the one built with all the variables od the data set. Finally, the blue curve represents the model resulting from the *stepAIC* function, and the green one is the final one. The AUC that is plotted is the one calculated in the sample. 
+In this section, I compare the final model to the initial models to see to what extent the work on the base helped us build a better model. The red curve represents the initial model without the added variables (ie the log and sqrt transormations). The black curve represents the one built with all the variables of the data set. Finally, the blue curve represents the model resulting from the *stepAIC* function, and the green curve represents the final model. The AUC that is plotted is the one calculated in the sample for the final model. 
 
 The green one appears to really improve the model compared to the one built only by the *stepAIC* function. Transforming variables also clearly improves the ROC curve and thus the model.
 
 
-```{r, fig.align="center", fig.cap="Figure 2 : ROC curves : initial model without added variables (red), model with all the variables (black), model with only variable selection (blue), final model (green)"}
+```{r, fig.align="center", fig.cap="Figure 3 : ROC curves : initial model without added variables (red), model with all the variables (black), model with only variable selection (blue), final model (green)"}
 library(pROC)
 invisible(plot(roc(df$purchase,
                    fitted(m0_0)),
@@ -335,6 +382,9 @@ invisible(plot(roc(df$purchase,
                print.auc = T, 
                col = "green", 
                add = T))
+
+legend("bottomright",legend=c("Initial model without added variables", "Model with only variable selection", "Model with all the variables", "Final model" ),
+       col=c("red", "blue", "black", "green"), lty=1, cex=0.8)
 ```
 
 ```{r, echo=FALSE}
@@ -373,9 +423,11 @@ By denoting by model0 the basis model without added variables, model1 the model 
 
 
 # 6. Discussion
-In the final model I built, all the variables are significant at the 5% level. All the indicators (AIC, AUC, and residuals deviance) are improved compared to the other models which gives confidence in the work done. However, as showed in Figure1, there are some influential outliers which could be removed from the data set in order to refit the model and see if it improved. As a matter of time, this is not done in this project.
+In the final model I built, all the variables are significant at the 5% level. All the indicators (AIC, AUC, and residuals deviance) are improved compared to the other models which gives confidence in the work done. However, as showed in Figure1, there are some influential outliers which could be removed from the data set in order to refit the model and see if it improved. Due to the limited time, this is not done in this project.
 
 Another thing to consider is the practical relevance of this model. The code enables the reader to display the odds-ratios and their confidence intervals in order to further analyze the model. 
+
+Finally, we clustered some variable levels in order not to have levels with few data, but the model would probably be more accurate if we didn't merge those levels but instead collect more data. 
 
 
 # References
