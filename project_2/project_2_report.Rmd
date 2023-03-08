@@ -29,7 +29,7 @@ In this report, we work with a data set providing us several variable such as an
 
 In this report, we explore the use of a logistic regression model to predict purchase behavior based on user actions and personal characteristics. Our data set includes several variables, including a binary indicator of whether a purchase was made or not, as well as other user behavior and personal characteristics that serve as predictors. 
 
-The outline of the remainder of this report is as follows. We introduce the data in section 2, describe our model selection procedure in section 3 and present the final model. We analyse our model via the diagnostics in Section 4 and will compare it to other in section 5. In section 6, we analyze the model built, and we'll conclude in section 7.
+The outline of the remainder of this report is as follows. We introduce the data in section 2, describe our model selection procedure in section 3 and present the final model. We analyse our model via the diagnostics in Section 4 and will compare it to other in section 5. In section 6 we conclude on the work done and the potential improvements.
 
 
 # 2. Data characteristics
@@ -98,9 +98,100 @@ df <- df %>% select(purchase,visitor_type,traffic_type,region,browser, operating
 buy <- 100*(1 - sum(df$purchase==0)/length(df$purchase))
 ```
 
-The purchases represent `r buy` of the data set, and are at more than 75% done by returning visitors. No region seems to particularly distinguish itself but there are some noticeable tendencies depending on the browser and traffic-type used. Users who buy a product also tend to look at more pages and exit and bounce less early than the ones who don't purchase a product. They tend to spend more time in the web and to inform themselves more. Weekends and special days don't seem to have an effect on the sales which seems surprising. However, the session month seems to have a non-neglictable influence. 
+The purchases represent `r round(buy,digits=1)` of the data set, and are at more than 75% done by returning visitors. No region seems to particularly distinguish itself but there are some noticeable tendencies depending on the browser and traffic-type used. Users who buy a product also tend to look at more pages and exit and bounce less early than the ones who don't purchase a product. They tend to spend more time in the web and to inform themselves more. Weekends and special days don't seem to have an effect on the sales which seems surprising. However, the session month seems to have a non-neglictable influence. 
 
-Some variables are greatly overdispersed, so we decide to transform them to be able to construct better models. We apply both log transformations and square root transformation to solve this issue.
+Some categorical variables contain few observations for each level so we use clustering to gather some and fit the model properly.
+
+```{r clustering, echo=FALSE, include = FALSE}
+#for traffic_type
+traffic_type <- df$traffic_type
+hc <- hclust(dist(table(traffic_type)))
+plot(hc)
+
+clusters_traffic_type <- cutree(hc, h = 7)
+clusters_traffic_type
+
+df<- df %>% mutate(
+  grouped_traffic_type = case_when(
+    traffic_type == '1'~ '1',
+    traffic_type == '2'~ '2',
+    traffic_type == '3'~ '3',
+    traffic_type == '4'~ '4',
+    traffic_type == '5'~ '5',
+    traffic_type == '6'~ '6',
+    traffic_type == '7'~ '7',
+    traffic_type == '8'~ '8',
+    traffic_type == '9'~ '7',
+    traffic_type == '10'~ '9',
+    traffic_type == '11'~ '10',
+    traffic_type == '12'~ '11',
+    traffic_type == '13'~ '12',
+    traffic_type == '14'~ '11',
+    traffic_type == '15'~ '11',
+    traffic_type == '16'~ '11',
+    traffic_type == '17'~ '11',
+    traffic_type == '18'~ '11',
+    traffic_type == '19'~ '11',
+    traffic_type == '20'~ '15',
+  )
+)
+
+
+#for browser
+browser <- df$browser
+hc <- hclust(dist(table(browser)))
+plot(hc)
+
+clusters_browser <- cutree(hc, h = 10)
+clusters_browser
+
+df<- df %>% mutate(
+  grouped_browser = case_when(
+    browser == '1'~ '1',
+    browser == '2'~ '2',
+    browser == '3'~ '3',
+    browser == '4'~ '4',
+    browser == '5'~ '5',
+    browser == '6'~ '6',
+    browser == '7'~ '7',
+    browser == '8'~ '8',
+    browser == '9'~ '7',
+    browser == '10'~ '6',
+    browser == '11'~ '7',
+    browser == '12'~ '7',
+    browser == '13'~ '7'
+  )
+) 
+
+
+#for operating_systems
+op <- df$operating_systems
+hc <- hclust(dist(table(op)))
+plot(hc)
+
+clusters_op <- cutree(hc, h = 10)
+clusters_op
+
+df<- df %>% mutate(
+  grouped_operating_systems = case_when(
+    operating_systems == '1'~ '1',
+    operating_systems == '2'~ '2',
+    operating_systems == '3'~ '3',
+    operating_systems == '4'~ '4',
+    operating_systems == '5'~ '1',
+    operating_systems == '6'~ '1',
+    operating_systems == '7'~ '1',
+    operating_systems == '8'~ '5'
+  )
+) 
+
+df <- df %>%mutate(grouped_browser = as.factor(grouped_browser), grouped_traffic_type = as.factor(grouped_traffic_type), grouped_operating_systems = as.factor(grouped_operating_systems))
+
+df <- df%>%select(purchase,visitor_type,grouped_traffic_type,region,grouped_browser, grouped_operating_systems,page_values, exit_rates, bounce_rates, special_day, weekend, month, product_related_duration, product_related, informational_duration, informational,administrative_duration, administrative)
+
+```
+
+Moreover, some variables are greatly overdispersed, so we decide to transform them to be able to construct better models. We apply both log transformations and square root transformation to solve this issue.
 
 ```{r adding variables, echo=FALSE, include = FALSE}
 #log transformations
@@ -138,7 +229,7 @@ df <- df %>% mutate(
 # 3. Model selection 
 
 ```{r model building, echo=FALSE, include = FALSE}
-m0_0 <- glm(purchase ~visitor_type + traffic_type + region + browser + operating_systems + page_values + exit_rates + bounce_rates + special_day + weekend + month + product_related_duration + product_related + informational_duration + informational + administrative_duration + administrative, family = 'binomial', data = df) #without the new included variables 
+m0_0 <- glm(purchase ~visitor_type + grouped_traffic_type + region + grouped_browser + grouped_operating_systems + page_values + exit_rates + bounce_rates + special_day + weekend + month + product_related_duration + product_related + informational_duration + informational + administrative_duration + administrative, family = 'binomial', data = df) #without the new included variables 
 
 m0 <- glm(purchase ~., family = 'binomial', data = df) #with all the variables, including the new ones 
 
@@ -152,37 +243,33 @@ m0$aic
 m0_0$deviance
 m0$deviance #adding the variables improved both the AIC and the deviance
 
-
 #now I build a better model with the function stepAIC which will select the best model in terms of AIC
 library('MASS')
 #model <- stepAIC(m0,direction = c("both", "backward", "forward"), trace = FALSE)
 
-model <-glm(formula = purchase ~ visitor_type + traffic_type + page_values + 
-    exit_rates + bounce_rates + month + product_related_duration + 
-    product_related + administrative + log_administrative + log_admin_duration + 
-    log_prod_related_duration + log_page_values + sqrt_exit + 
-    sqrt_bounce + sqrt_administrative + sqrt_time_admin + sqrt_time_duration,  family = "binomial", data = df) #this is the model given by stepAIC but as it's very long, I include it here directly
-
+model <- glm(purchase ~ visitor_type + grouped_traffic_type + 
+    page_values + exit_rates + month + product_related_duration + 
+    administrative + sqrt_exit + sqrt_bounce + sqrt_administrative + 
+    sqrt_time_duration, family = "binomial", data =df)#this is the model given by stepAIC but as it's very long, I include it here directly
 summary(model)
 
-#to see if the variables selected are statistically significative
-#Anova(m0, type = 'II', test ='LR')
-Anova(model, type = 'II', test ='LR') #product_related and log_administrative are not statistically significant
- 
+#to see if the variables selected are statistically significant
+Anova(model, type = 'II', test ='LR') #all of them are significant
+Anova(m0, type = 'II', test ='LR') #most of them are not significant
 
-#new model 
-improved_model <- glm(formula = purchase ~ visitor_type + traffic_type + page_values + exit_rates + bounce_rates + month + product_related_duration + 
-     administrative +  log_admin_duration + 
-    log_prod_related_duration + log_page_values + sqrt_exit + 
-    sqrt_bounce + sqrt_administrative + sqrt_time_admin + sqrt_time_duration,  family = "binomial", data = df)
+#trying to add some variables since m0 seems better
+improved_model <- glm(purchase ~ visitor_type + grouped_traffic_type + 
+    page_values + exit_rates + bounce_rates + month + product_related_duration + 
+    administrative + log_admin_duration +log_prod_related_duration + log_page_values + sqrt_exit + sqrt_bounce + sqrt_administrative + 
+    sqrt_time_duration, family = "binomial", data =df)
 summary(improved_model)
-Anova(improved_model, type = 'II', test ='LR') #sqrt_time_admin is not significant
+Anova(improved_model, type = 'II', test ='LR') #sqrt_administrative is not significant
 
 #by removing non significative variables one by one, I obtain the final model below
-improved_model_2 <- glm(formula = purchase ~ visitor_type + traffic_type + page_values + exit_rates + bounce_rates + month + product_related_duration + 
-     administrative  + 
-    log_prod_related_duration + log_page_values + sqrt_exit + 
-    sqrt_bounce  + sqrt_time_duration,  family = "binomial", data = df)
+improved_model_2 <- glm(purchase ~ visitor_type + grouped_traffic_type + 
+    page_values + exit_rates + bounce_rates + month + product_related_duration + 
+    administrative +log_prod_related_duration + log_page_values + sqrt_exit + sqrt_bounce  + 
+    sqrt_time_duration, family = "binomial", data =df)
 summary(improved_model_2)
 anova_table <- Anova(improved_model_2, type = 'II', test ='LR') #with this one all the variables are significative under the 5%
 
@@ -190,36 +277,43 @@ anova_table <- Anova(improved_model_2, type = 'II', test ='LR') #with this one a
 table_results_OR <- exp(cbind(OR = coef(improved_model_2), confint(improved_model_2)))
 ```
 
-To build the model, I start by computing the full model without the added variables and compared it to the one with added variables to assess their relevance. The model with added variables has a smaller AIC (`r m0$aic` compared to `r m0_0$aic`) as well as a smaller deviance (`r m0$deviance` compared to `r m0_0$deviance`) which gives confidence in those new variables.
+To build the model, I start by computing the full model without the added variables and compared it to the one with added variables to assess their relevance. The model with added variables has a smaller AIC (`r round(m0$aic, digits =0)` compared to `r round(m0_0$aic, digits=0)`) as well as a smaller deviance (`r round(m0$deviance, digits=0)` compared to `r round(m0_0$deviance, digits=0)`) which gives confidence in those new variables.
 
-Then, I used the function *stepAIC* of the MASS package to do AIC-based model selection. This creates a basis model that I then improve by looking at the significance of the variables with the *Anova* command. 
+Then, I used the function *stepAIC* of the MASS package to do AIC-based model selection. This creates a basis model that I then improve by looking at the significance of the variables with the *Anova* command. This enabled me to build two improved models step by adding variables one by one. The final model includes the variables: visitor_type, grouped_traffic_type, page_values, exit_rates, bounce_rates, month, product_related_duration, administrative, log_prod_related_duration, log_page_values, sqrt_exit, sqrt_bounce, sqrt_time_duration. They are all significant at the 5% level and most of them even at the below 0.1% evel which gives confidence in the model built. The AIC of our final model is  `r round(improved_model_2$aic, digits=0)` and the deviance is `r round(improved_model$deviance, digits=0)`. 
 
-Summary of the final model
-```{r, echo=FALSE}
+
+```{r, echo=FALSE, include = FALSE}
+#Summary of the final model
 summary(improved_model_2)
 ```
 
-Odds ratio and confidence intervals
-```{r, echo=FALSE}
+
+```{r, echo=FALSE, include = FALSE}
+#Odds ratio and confidence intervals
 table_results_OR
 ```
 
-Anova of the final model
-```{r, echo=FALSE}
+
+```{r, echo=FALSE, include= FALSE}
+#Anova of the final model
 anova_table
 ```
 
 # 4. Model diagnostics
-to comment
-```{r, fig.align="center", fig.cap="Figure: Diagnostics"}
+*Figure 1* shows the diagnostics of the model. On the upper left panel, one can see the characteristic two-bands pattern associated with logisitic regressions. There are several visible outliers that appear to be influential on the model as identified in the *scale-location* and *residuals vs leverage panels*. The normal QQplot for the logistic regression also identifies some outliers in the upper tail.
+
+```{r, fig.align="center", fig.cap="Figure 1 : Diagnostics"}
 par(mfrow=c(2,2))
 plot(improved_model_2)
-
-plot(improved_model_2$fitted.values, improved_model_2$residuals, main = 'residuals')
 ```
 
 # 5. Model comparison 
-```{r, fig.align="center", fig.cap="Figure: ROC curves : initial model without added variables (red), model with variable selection (blue), final model (green)"}
+In this section, I compare the final model to the initial models to see to what extent the work on the base helped us build a better model. The red curve represents the initial model without the added variables (ie the log and sqrt transormations). The black curve represents the one built with all the variables od the data set. Finally, the blue curve represents the model resulting from the *stepAIC* function, and the green one is the final one. The AUC that is plotted is the one calculated in the sample. 
+
+The green one appears to really improve the model compared to the one built only by the *stepAIC* function. Transforming variables also clearly improves the ROC curve and thus the model.
+
+
+```{r, fig.align="center", fig.cap="Figure 2 : ROC curves : initial model without added variables (red), model with all the variables (black), model with only variable selection (blue), final model (green)"}
 library(pROC)
 invisible(plot(roc(df$purchase,
                    fitted(m0_0)),
@@ -232,14 +326,16 @@ invisible(plot(roc(df$purchase,
                col = "blue", 
                add = T))
 invisible(plot(roc(df$purchase,
+                   fitted(m0)),
+               print.auc = F, 
+               col = "black", 
+               add = T))
+invisible(plot(roc(df$purchase,
                    fitted(improved_model_2)),
                print.auc = T, 
                col = "green", 
                add = T))
 ```
-
-put the table with AIC, AUC and deviance 
-
 
 ```{r, echo=FALSE}
 #code provided
@@ -258,20 +354,28 @@ AUC[k] <- auc(test$purchase,test_pred)
 return(mean(AUC))
 }
 
-#gm1 <- glm(purchase~., family="binomial", data=Data)
-#AUC_eval(improved_model_2,df)
 
-#il y a des problèmes 
+auc_m0 <- AUC_eval(m0,df)
+auc_m0_0 <- AUC_eval(m0_0, df)
+auc_model <- AUC_eval(model,df)
+auc_improved_model <- AUC_eval(improved_model,df)
+auc_improved_model_2 <- AUC_eval(improved_model_2,df)
 
 ```
 
+By denoting by model0 the basis model without added variables, model1 the model with all the added variables, model2 the one obtained with *stepAIC* and model3 the final model, the performance results are as follows :  
 
-# 6. Interpretation
-statistical significance + practical significance : to do
+|                    | model0 | model1 | model2 | model3 |
+|--------------------|--------|--------|--------|--------|
+| AIC                | 7167   | 6078   | 7094   | 6042   |
+| AUC                | 0.88   | 0.911  | 0.889  | 0.913  |
+| Residuals deviance | 7059   | 5938   | 7030   | 5975   |
 
 
-# 7. Discussion
+# 6. Discussion
+In the final model I built, all the variables are significant at the 5% level. All the indicators (AIC, AUC, and residuals deviance) are improved compared to the other models which gives confidence in the work done. However, as showed in Figure1, there are some influential outliers which could be removed from the data set in order to refit the model and see if it improved. As a matter of time, this is not done in this project.
 
+Another thing to consider is the practical relevance of this model. The code enables the reader to display the odds-ratios and their confidence intervals in order to further analyze the model. 
 
 
 # References

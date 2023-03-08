@@ -56,6 +56,12 @@ df <- df %>% mutate(
 #final dataframe
 df <- df %>% select(purchase,visitor_type,traffic_type,region,browser, operating_systems,page_values, exit_rates, bounce_rates, special_day, weekend, month, product_related_duration, product_related, informational_duration, informational,administrative_duration, administrative)
 
+df <- df %>% mutate(
+  purchase = as.factor(case_when(
+    purchase == F ~ 0,
+    purchase == T ~ 1
+  )))
+
 ```
 
 ```{r, echo=FALSE}
@@ -235,9 +241,130 @@ plot(density(df$administrative_duration)) #huge values and very dispersed
 plot(density(log(df$administrative_duration))) #best
 plot(density(sqrt(df$administrative_duration))) #still too dispersed
 
+#grouping some levels
+df %>%group_by(visitor_type) %>% summarise(number=n()) #all right but other possibly do_btable
+df %>% group_by(traffic_type) %>% summarise(number=n()) #pb for 7, 9, 12, 14, 15, 16, 17, 18, 19 : see with who to regroup
+df %>%group_by(region)%>% summarise(number=n()) #all right
+df %>% group_by(browser) %>% summarise(number=n()) #pb for 9, 7, 11, 12, and possibly 13
+df%>%group_by(operating_systems)%>% summarise(number=n()) #pb for 5, 6, 7, possibly 8
+df %>% group_by(weekend)%>% summarise(number=n()) #all right
+df %>% group_by(month) %>% summarise(number=n()) #all right
+
+
+## first idea
+#for traffic_type :pb for 7, 9, 12, 14, 15, 16, 17, 18, 19 
+df%>%group_by(traffic_type, purchase)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number))
+#can regroup the ones below 10% :19, et 12, 17, 18, 15 car pas d'achat ? 
+#can regroup the ones below 20% but over 10%: 9, 14
+#can regroup the ones over 20% : 7, 16
+
+
+#for browser : pb for 9, 7, 11, 12, and possibly 13
+df%>%group_by(traffic_type, purchase)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number))
+#can regroup
+#over 20% : 7
+#over 10% : 9, 11
+#under 10% : 12, 6
+
+#for operating systems : 5, 6, 7, possibly 8
+df%>%group_by(operating_systems, purchase)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number))
+#over 20% : 8
+#over 10% : 5, 6, 7
+
+
+##with clustering 
+#for traffic_type
+traffic_type <- df$traffic_type
+hc <- hclust(dist(table(traffic_type)))
+plot(hc)
+
+clusters_traffic_type <- cutree(hc, h = 7)
+clusters_traffic_type
+
+df<- df %>% mutate(
+  grouped_traffic_type = case_when(
+    traffic_type == '1'~ '1',
+    traffic_type == '2'~ '2',
+    traffic_type == '3'~ '3',
+    traffic_type == '4'~ '4',
+    traffic_type == '5'~ '5',
+    traffic_type == '6'~ '6',
+    traffic_type == '7'~ '7',
+    traffic_type == '8'~ '8',
+    traffic_type == '9'~ '7',
+    traffic_type == '10'~ '9',
+    traffic_type == '11'~ '10',
+    traffic_type == '12'~ '11',
+    traffic_type == '13'~ '12',
+    traffic_type == '14'~ '11',
+    traffic_type == '15'~ '11',
+    traffic_type == '16'~ '11',
+    traffic_type == '17'~ '11',
+    traffic_type == '18'~ '11',
+    traffic_type == '19'~ '11',
+    traffic_type == '20'~ '15',
+  )
+)
+
+df%>%group_by(grouped_traffic_type) %>%summarise(number=n()) #ok now
+
+
+#for browser
+browser <- df$browser
+hc <- hclust(dist(table(browser)))
+plot(hc)
+
+clusters_browser <- cutree(hc, h = 10)
+clusters_browser
+
+df<- df %>% mutate(
+  grouped_browser = case_when(
+    browser == '1'~ '1',
+    browser == '2'~ '2',
+    browser == '3'~ '3',
+    browser == '4'~ '4',
+    browser == '5'~ '5',
+    browser == '6'~ '6',
+    browser == '7'~ '7',
+    browser == '8'~ '8',
+    browser == '9'~ '7',
+    browser == '10'~ '6',
+    browser == '11'~ '7',
+    browser == '12'~ '7',
+    browser == '13'~ '7'
+  )
+) 
+
+df%>%group_by(grouped_browser) %>%summarise(number=n()) #good
+
+#for operating_systems
+op <- df$operating_systems
+hc <- hclust(dist(table(op)))
+plot(hc)
+
+clusters_op <- cutree(hc, h = 10)
+clusters_op
+
+df<- df %>% mutate(
+  grouped_operating_systems = case_when(
+    operating_systems == '1'~ '1',
+    operating_systems == '2'~ '2',
+    operating_systems == '3'~ '3',
+    operating_systems == '4'~ '4',
+    operating_systems == '5'~ '1',
+    operating_systems == '6'~ '1',
+    operating_systems == '7'~ '1',
+    operating_systems == '8'~ '5'
+  )
+) 
+
+df%>%group_by(grouped_operating_systems) %>%summarise(number=n()) %>% mutate(freq=number/sum(number)) #good
+
+
+df <- df %>%mutate(grouped_browser = as.factor(grouped_browser), grouped_traffic_type = as.factor(grouped_traffic_type), grouped_operating_systems = as.factor(grouped_operating_systems))
+
+new_df <- df%>%select(purchase,visitor_type,grouped_traffic_type,region,grouped_browser, grouped_operating_systems,page_values, exit_rates, bounce_rates, special_day, weekend, month, product_related_duration, product_related, informational_duration, informational,administrative_duration, administrative)
 ```
-
-
 
 
 #transformations/strange values
@@ -257,6 +384,19 @@ df <- df %>% mutate(
   log_inf = log(informational +1),
   log_page_values = log(page_values +1)
 )
+
+new_df <- new_df %>% mutate(
+  log_exit = log(exit_rates +1 ),
+  log_bounce = log(bounce_rates +1),
+  log_administrative = log(administrative +1),
+  log_admin_duration = log(administrative_duration +1),
+  log_prod_related_duration = log(product_related_duration +1),
+  log_prod_related = log(product_related +1),
+  log_inf_duration = log(informational_duration+1),
+  log_inf = log(informational +1),
+  log_page_values = log(page_values +1)
+)
+
 
 hist(df, freq = F)
 
@@ -278,6 +418,13 @@ df <- df %>% mutate(
   sqrt_time_duration = sqrt(product_related_duration)
 )
 
+new_df <- new_df %>% mutate(
+  sqrt_exit = sqrt(exit_rates),
+  sqrt_bounce = sqrt(bounce_rates),
+  sqrt_administrative = sqrt(administrative),
+  sqrt_time_admin = sqrt(administrative_duration),
+  sqrt_time_duration = sqrt(product_related_duration)
+)
 
 hist(df$sqrt_exit, freq= F)
 hist(df$log_exit, freq =F)
@@ -301,6 +448,11 @@ df <- df %>% mutate(
   inter_admin = administrative * administrative_duration
 )
 
+new_df <- new_df %>% mutate(
+  inter_product = product_related * product_related_duration,
+  inter_informational = informational * informational_duration,
+  inter_admin = administrative * administrative_duration
+)
 ```
 
 
@@ -309,17 +461,15 @@ df <- df %>% mutate(
 #build the model
 
 ```{r, echo=FALSE}
-df <- df %>% mutate(
-  purchase = as.factor(case_when(
-    purchase == F ~ 0,
-    purchase == T ~ 1
-  )))
-
 m0_0 <- glm(purchase ~visitor_type + traffic_type + region + browser + operating_systems + page_values + exit_rates + bounce_rates + special_day + weekend + month + product_related_duration + product_related + informational_duration + informational + administrative_duration + administrative, family = 'binomial', data = df)
+summary(m0_0)
+
+m0_0 <- glm(purchase ~visitor_type + grouped_traffic_type + region + grouped_browser + grouped_operating_systems + page_values + exit_rates + bounce_rates + special_day + weekend + month + product_related_duration + product_related + informational_duration + informational + administrative_duration + administrative, family = 'binomial', data = new_df)
 summary(m0_0)
 
 #naive model with all the variables 
 m0 <- glm(purchase ~., family = 'binomial', data = df)
+m0 <- glm(purchase ~., family = 'binomial', data = new_df)
 summary(m0)
 anova(m0)
 
@@ -371,12 +521,14 @@ df %>% select(product_related, purchase) %>%filter(purchase == 0)
 #library(glmtoolbox)
 #model <- stepCriterion(m0, criterion = 'aic',  direction = c("forward", "backward"))
 
+
+
 library('MASS')
 model <- stepAIC(m0,direction = c("both", "backward", "forward"), trace = FALSE)
 summary(model)
 
 plot(m0)
-plot(model) #c'est naze
+plot(model)
 
 library(pROC)
 invisible(plot(roc(df$purchase,
@@ -427,6 +579,7 @@ improved_model <- glm(purchase ~ visitor_type + traffic_type + page_values +
     sqrt_exit + sqrt_bounce + sqrt_administrative + sqrt_time_admin + 
     sqrt_time_duration + inter_product, family = "binomial", 
     data = df)
+
 summary(improved_model)
 Anova(improved_model, type = 'II', test ='LR')
 
@@ -529,11 +682,219 @@ return(mean(AUC))
 }
 
 #gm1 <- glm(purchase~., family="binomial", data=Data)
-#AUC_eval(gm1,df)
+AUC_eval(model,new_df)
 
 #il y a des problèmes 
 
 ```
 
+
+
+# Report 
+
+```{r data base work, echo=FALSE, include = FALSE}
+df<-Data
+  
+#put everything in order (rename, type of var)
+df <- df %>% mutate(
+  #from the e-commerce website
+  administrative = as.numeric(Administrative) %>% ff_label("Number of administrative pages visited"),
+  administrative_duration = as.numeric(Administrative_Duration)%>% ff_label("Time spent on administrative pages"),
+  informational = as.numeric(Informational) %>% ff_label("Number of informational-type pages visited"),
+  informational_duration =as.numeric(Informational_Duration) %>% ff_label("Time spent on informational-type pages"),
+  product_related = as.numeric(ProductRelated) %>% ff_label("Number of product related type pages visited"),
+  product_related_duration = as.numeric(ProductRelated_Duration)%>% ff_label(" Time spent on product related type pages"),
+  #derived from a date
+  month = as.factor(Month) %>% ff_label("Month of the session"),
+  weekend = as.factor(Weekend) %>% ff_label("Indicator of the session during a week-end"),
+  special_day = as.numeric(SpecialDay)%>% ff_label("Closeness to a Special day"),
+  #from google analytics
+  bounce_rates = as.numeric(BounceRates) %>% ff_label("Average bounce rate of pages visited"),
+  exit_rates = as.numeric(ExitRates) %>% ff_label('Average exit of pages visited'),
+  page_values= as.numeric(PageValues) %>% ff_label('Average page value of pages visited'),
+  operating_systems = as.factor(OperatingSystems)%>% ff_label("Operating systems of the user"),
+  browser = as.factor(Browser)%>% ff_label("Browser of the user"),
+  region = as.factor(Region) %>% ff_label("Geographic region"),
+  traffic_type = as.factor(TrafficType)%>% ff_label("Traffic type"),
+  visitor_type = as.factor(VisitorType)%>% ff_label("Visitor type"),
+  purchase = as.factor(Revenue)%>% ff_label("Indicator of a purchase made or not")
+)
+
+df <- df %>% mutate(
+  purchase = as.factor(case_when(
+    purchase == F ~ 0,
+    purchase == T ~ 1
+  )))
+
+
+#final dataframe
+df <- df %>% select(purchase,visitor_type,traffic_type,region,browser, operating_systems,page_values, exit_rates, bounce_rates, special_day, weekend, month, product_related_duration, product_related, informational_duration, informational,administrative_duration, administrative)
+
+buy <- 100*(1 - sum(df$purchase==0)/length(df$purchase))
+
+```
+
+The purchases represent `r buy` of the data set, and are at more than 75% done by returning visitors. No region seems to particularly distinguish itself but there are some noticeable tendencies depending on the browser and traffic-type used. Users who buy a product also tend to look at more pages and exit and bounce less early than the ones who don't purchase a product. They tend to spend more time in the web and to inform themselves more. Weekends and special days don't seem to have an effect on the sales which seems surprising. However, the session month seems to have a non-neglictable influence. 
+
+Some variables are greatly overdispersed, so we decide to transform them to be able to construct better models. We apply both log transformations and square root transformation to solve this issue.
+
+```{r adding variables, echo=FALSE, include = FALSE}
+#log transformations
+df <- df %>% mutate(
+  log_exit = log(exit_rates +1 ),
+  log_bounce = log(bounce_rates +1),
+  log_administrative = log(administrative +1),
+  log_admin_duration = log(administrative_duration +1),
+  log_prod_related_duration = log(product_related_duration +1),
+  log_prod_related = log(product_related +1),
+  log_inf_duration = log(informational_duration+1),
+  log_inf = log(informational_duration +1),
+  log_page_values = log(page_values +1)
+)
+
+#sqrt transformation
+df <- df %>% mutate(
+  sqrt_exit = sqrt(exit_rates),
+  sqrt_bounce = sqrt(bounce_rates),
+  sqrt_administrative = sqrt(administrative),
+  sqrt_time_admin = sqrt(administrative_duration),
+  sqrt_time_duration = sqrt(product_related_duration)
+)
+
+#interaction terms
+df <- df %>% mutate(
+  inter_product = product_related * product_related_duration,
+  inter_informational = informational * informational_duration,
+  inter_admin = administrative * administrative_duration
+)
+```
+
+
+
+# 3. Model selection 
+
+```{r model building, echo=FALSE, include = FALSE}
+m0_0 <- glm(purchase ~visitor_type + traffic_type + region + browser + operating_systems + page_values + exit_rates + bounce_rates + special_day + weekend + month + product_related_duration + product_related + informational_duration + informational + administrative_duration + administrative, family = 'binomial', data = df) #without the new included variables 
+
+m0 <- glm(purchase ~., family = 'binomial', data = df) #with all the variables, including the new ones 
+
+#to compare the first two models
+summary(m0_0)
+summary(m0)
+
+m0_0$aic
+m0$aic
+
+m0_0$deviance
+m0$deviance #adding the variables improved both the AIC and the deviance
+
+
+#now I build a better model with the function stepAIC which will select the best model in terms of AIC
+library('MASS')
+#model <- stepAIC(m0,direction = c("both", "backward", "forward"), trace = FALSE)
+
+model <-glm(formula = purchase ~ visitor_type + traffic_type + page_values + 
+    exit_rates + bounce_rates + month + product_related_duration + 
+    product_related + administrative + log_administrative + log_admin_duration + 
+    log_prod_related_duration + log_page_values + sqrt_exit + 
+    sqrt_bounce + sqrt_administrative + sqrt_time_admin + sqrt_time_duration,  family = "binomial", data = df) #this is the model given by stepAIC but as it's very long, I include it here directly
+
+summary(model)
+
+#to see if the variables selected are statistically significative
+#Anova(m0, type = 'II', test ='LR')
+Anova(model, type = 'II', test ='LR') #product_related and log_administrative are not statistically significant
+ 
+
+#new model 
+improved_model <- glm(formula = purchase ~ visitor_type + traffic_type + page_values + exit_rates + bounce_rates + month + product_related_duration + 
+     administrative +  log_admin_duration + 
+    log_prod_related_duration + log_page_values + sqrt_exit + 
+    sqrt_bounce + sqrt_administrative + sqrt_time_admin + sqrt_time_duration,  family = "binomial", data = df)
+summary(improved_model)
+Anova(improved_model, type = 'II', test ='LR') #sqrt_time_admin is not significant
+
+#by removing non significative variables one by one, I obtain the final model below
+improved_model_2 <- glm(formula = purchase ~ visitor_type + traffic_type + page_values + exit_rates + bounce_rates + month + product_related_duration + 
+     administrative  + 
+    log_prod_related_duration + log_page_values + sqrt_exit + 
+    sqrt_bounce  + sqrt_time_duration,  family = "binomial", data = df)
+summary(improved_model_2)
+anova_table <- Anova(improved_model_2, type = 'II', test ='LR') #with this one all the variables are significative under the 5%
+
+#odds ratio and confidence intervals
+table_results_OR <- exp(cbind(OR = coef(improved_model_2), confint(improved_model_2)))
+```
+
+To build the model, I start by computing the full model without the added variables and compared it to the one with added variables to assess their relevance. The model with added variables has a smaller AIC (`r m0$aic` compared to `r m0_0$aic`) as well as a smaller deviance (`r m0$deviance` compared to `r m0_0$deviance`) which gives confidence in those new variables.
+
+Then, I used the function *stepAIC* of the MASS package to do AIC-based model selection. This creates a basis model that I then improve by looking at the significance of the variables with the *Anova* command. 
+
+Summary of the final model
+```{r, echo=FALSE}
+summary(improved_model_2)
+```
+
+```{r, echo=FALSE}
+table_results_OR
+```
+
+Anova of the final model
+```{r, echo=FALSE}
+anova_table
+```
+
+# 4. Model diagnostics
+to comment
+```{r, fig.align="center", fig.cap="Figure: Diagnostics"}
+par(mfrow=c(2,2))
+plot(improved_model_2)
+
+plot(improved_model_2$fitted.values, improved_model_2$residuals, main = 'residuals')
+```
+
+# 5. Model comparison 
+```{r, fig.align="center", fig.cap="Figure: ROC curves : initial model without added variables (red), model with variable selection (blue), final model (green)"}
+library(pROC)
+invisible(plot(roc(df$purchase,
+                   fitted(m0_0)),
+               col = "red", 
+               print.auc = F,
+               main = "ROC curves"))
+invisible(plot(roc(df$purchase,
+                   fitted(model)),
+               print.auc = F, 
+               col = "blue", 
+               add = T))
+invisible(plot(roc(df$purchase,
+                   fitted(improved_model_2)),
+               print.auc = T, 
+               col = "green", 
+               add = T))
+```
+
+
+```{r, echo=FALSE}
+#code provided
+library(pROC)
+AUC_eval <- function(gmodel,Data){
+set.seed(517)
+Folds <- matrix(sample(1:dim(Data)[1]), ncol=5)
+AUC <- rep(0,5)
+for(k in 1:5){
+train <- Data[-Folds[,k],]
+test <- Data[Folds[,k],]
+my_gm <- glm(gmodel$formula, family="binomial", data=train)
+test_pred <- predict(my_gm, newdata = test, type="response")
+AUC[k] <- auc(test$purchase,test_pred)
+}
+return(mean(AUC))
+}
+
+#gm1 <- glm(purchase~page_values, family="binomial", data=df)
+#AUC_eval(gm1,df) this examples works but not all 
+
+
+```
 
 
