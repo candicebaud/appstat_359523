@@ -101,6 +101,7 @@ buy <- 100*(1 - sum(df$purchase==0)/length(df$purchase)) #percentage of purchase
 
 The first exploratory data analysis revealed important insights into the correlation structure of the data set. *Figure 1* displays the correlation matrix, with only the most correlated features represented. The variable 'page values' is strongly correlated with purchase, and is also moderately correlated with exit rates and bounce rates, which are themselves highly correlated. Exit rates, in particular, are highly correlated with most of the other variables displayed in the figure, highlighting its importance as a feature that is heavily linked to the other ones.
 
+
 ```{r, fig.align="center", fig.cap="Figure 1 : Correlation matrix"}
 panel.corrplot <- function(x, y, digits = 2, prefix = "", cex.cor, ...) {
     usr <- par("usr")
@@ -133,6 +134,64 @@ suppressWarnings(pairs(df$purchase ~ df$page_values + df$exit_rates + df$bounce_
       upper.panel = panel.corrplot,   
       lower.panel = panel.smooth, 
       diag.panel = panel.hist,))
+```
+
+```{r descriptive statistics, echo=FALSE, include = FALSE}
+#graphs not included in the report but that correspond to what is described below 
+
+#visitor_type
+df%>%group_by(purchase, visitor_type)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=purchase, y=freq, fill = visitor_type )) + geom_bar(stat="identity", position ='dodge')
+
+#region
+df%>%group_by(region, purchase)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=region, y=freq, fill = purchase )) + geom_bar(stat="identity", position ='dodge')
+
+#browser
+df%>%group_by(grouped_browser, purchase)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=browser, y=freq, fill = purchase )) + geom_bar(stat="identity", position ='dodge')
+
+#traffic_type
+df%>%group_by(grouped_traffic_type, purchase)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=traffic_type, y=freq, fill = purchase )) + geom_bar(stat="identity", position ='dodge')
+
+#page_values
+df%>%group_by(purchase, page_values)%>% ggplot(aes(x=purchase, y=page_values)) + geom_boxplot()
+
+#exit_rates
+df%>%group_by(purchase, exit_rates)%>% ggplot(aes(x=purchase, y=exit_rates)) + geom_boxplot()
+
+#bounce_rates
+df%>%group_by(purchase, bounce_rates)%>% ggplot(aes(x=purchase, y=bounce_rates)) + geom_boxplot()
+
+#special_day
+df%>%group_by(purchase, special_day)%>% ggplot(aes(x=purchase, y=special_day)) + geom_boxplot()
+
+#productduration
+df%>%group_by(purchase, product_related_duration)%>% ggplot(aes(x=purchase, y=product_related_duration)) + geom_boxplot()
+
+#product_related
+df%>%group_by(purchase, product_related)%>% ggplot(aes(x=purchase, y=product_related)) + geom_boxplot()
+
+#informational_duration
+df%>%group_by(purchase, informational_duration)%>% ggplot(aes(x=purchase, y=informational_duration)) + geom_boxplot()
+
+#informational
+df%>%group_by(purchase, informational)%>% ggplot(aes(x=purchase, y=informational)) + geom_boxplot()
+
+#administrative_duration
+df%>%group_by(purchase, administrative_duration)%>% ggplot(aes(x=purchase, y=administrative_duration)) + geom_boxplot()
+
+#administrative
+df%>%group_by(purchase, administrative)%>% ggplot(aes(x=purchase, y=administrative)) + geom_boxplot()
+
+#month
+df%>%group_by(month, purchase)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=month, y=freq, fill = purchase )) + geom_bar(stat="identity", position ='dodge')
+
+#weekend
+df%>%group_by(weekend, purchase)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
+  ggplot(aes(x=weekend, y=freq, fill = purchase )) + geom_bar(stat="identity", position ='dodge')
 ```
 
 
