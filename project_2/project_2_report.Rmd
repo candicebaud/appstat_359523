@@ -59,8 +59,8 @@ The outcome of interest is the fact that a purchase was made or not (variable *p
 
 ```{r data base work, echo=FALSE, include = FALSE}
 df<-Data
-  
-
+ 
+#Below, I change the names of the variables, change their type, and put some labels
 df <- df %>% mutate(
   #from the e-commerce website
   n_admin_page = as.numeric(Administrative) %>% ff_label("Number of administrative pages visited"),
@@ -69,10 +69,12 @@ df <- df %>% mutate(
   time_info_page =as.numeric(Informational_Duration) %>% ff_label("Time spent on informational-type pages"),
   n_prod_rel_page = as.numeric(ProductRelated) %>% ff_label("Number of product related type pages visited"),
   time_prod_rel_page = as.numeric(ProductRelated_Duration)%>% ff_label(" Time spent on product related type pages"),
+  
   #derived from a date
   month = as.factor(Month) %>% ff_label("Month of the session"),
   weekend = as.factor(Weekend) %>% ff_label("Indicator of the session during a week-end"),
   special_day = as.numeric(SpecialDay)%>% ff_label("Closeness to a Special day"),
+  
   #from google analytics
   bounce_rates = as.numeric(BounceRates) %>% ff_label("Average bounce rate of pages visited"),
   exit_rates = as.numeric(ExitRates) %>% ff_label('Average exit of pages visited'),
@@ -383,12 +385,10 @@ I then used the stepAIC function of the MASS package to perform AIC-based model 
 
 The final model includes the variables: the visitor type, the traffic type, the page values and its log, the exit rates and their square root, the bounce rates and their square root, the session month, the time spent looking at product-related information and its log and square root, the number of administrative pages looked at. All of these variables are significant at the 5% level, and most of them are even significant below the 0.1% level, which provides strong evidence for the model's reliability. The AIC of our final model is  `r round(improved_model_2$aic, digits=0)` and the deviance is `r round(improved_model$deviance, digits=0)`. 
 
-
 ```{r, echo=FALSE, include = FALSE}
 #Summary of the final model
 summary(improved_model_2)
 ```
-
 
 ```{r, echo=FALSE, include = FALSE}
 #Odds ratio and confidence intervals
@@ -485,12 +485,12 @@ By denoting by model0 the basis model without added variables, model1 the model 
 |                    | model0 | model1 | model2 | model3 |
 |--------------------|--------|--------|--------|--------|
 | AIC                | 7167   | 6078   | 7094   | 6042   |
-| AUC                | 0.884   | 0.911  | 0.889  | 0.913  |
-| Residuals deviance | 7059   | 5938   | 7030   | 5975   |
+| AUC                | 0.884  | 0.911  | 0.889  | 0.913  |
+| Residuals deviance | 7059   | 5938   | 7030   | 5974   |
 
 
 # 6. Discussion
-In conclusion, the logistic regression model developed in this project is satisfactory with all variables being significant at the 5% level. The model also outperformed other models based on AIC, AUC, and residuals deviance, which instills confidence in its accuracy. However, the presence of influential outliers in the dataset warrants further investigation, and their removal could potentially lead to an even more improved model. 
+In conclusion, the logistic regression model developed in this project is satisfactory with all variables being significant at the 5% level. The model also outperformed other models based on AIC and AUC, and performed among the best ones regarding residuals deviance, which instills confidence in its accuracy. However, the presence of influential outliers in the dataset warrants further investigation, and their removal could potentially lead to an even more improved model. 
 
 It's worth noting that the clustering of variable levels was necessary to avoid having levels with insufficient data. However, collecting more data to include all levels could potentially improve the accuracy of the model even further.
 
