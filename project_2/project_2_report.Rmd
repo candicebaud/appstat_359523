@@ -60,15 +60,15 @@ The outcome of interest is the fact that a purchase was made or not (variable *p
 ```{r data base work, echo=FALSE, include = FALSE}
 df<-Data
   
-#below I did not fully rename the variables but instead added some labels so when you look in the database it's nicer, and it's also nicer for plots in general
+
 df <- df %>% mutate(
   #from the e-commerce website
-  administrative = as.numeric(Administrative) %>% ff_label("Number of administrative pages visited"),
-  administrative_duration = as.numeric(Administrative_Duration)%>% ff_label("Time spent on administrative pages"),
-  informational = as.numeric(Informational) %>% ff_label("Number of informational-type pages visited"),
-  informational_duration =as.numeric(Informational_Duration) %>% ff_label("Time spent on informational-type pages"),
-  product_related = as.numeric(ProductRelated) %>% ff_label("Number of product related type pages visited"),
-  product_related_duration = as.numeric(ProductRelated_Duration)%>% ff_label(" Time spent on product related type pages"),
+  n_admin_page = as.numeric(Administrative) %>% ff_label("Number of administrative pages visited"),
+  time_admin_page = as.numeric(Administrative_Duration)%>% ff_label("Time spent on administrative pages"),
+  n_info_page = as.numeric(Informational) %>% ff_label("Number of informational-type pages visited"),
+  time_info_page =as.numeric(Informational_Duration) %>% ff_label("Time spent on informational-type pages"),
+  n_prod_rel_page = as.numeric(ProductRelated) %>% ff_label("Number of product related type pages visited"),
+  time_prod_rel_page = as.numeric(ProductRelated_Duration)%>% ff_label(" Time spent on product related type pages"),
   #derived from a date
   month = as.factor(Month) %>% ff_label("Month of the session"),
   weekend = as.factor(Weekend) %>% ff_label("Indicator of the session during a week-end"),
@@ -94,7 +94,7 @@ df <- df %>% mutate(
 
 
 #final dataframe
-df <- df %>% select(purchase,visitor_type,traffic_type,region,browser, operating_systems,page_values, exit_rates, bounce_rates, special_day, weekend, month, product_related_duration, product_related, informational_duration, informational,administrative_duration, administrative)
+df <- df %>% select(purchase,visitor_type,traffic_type,region,browser, operating_systems,page_values, exit_rates, bounce_rates, special_day, weekend, month, time_prod_rel_page, n_prod_rel_page, time_info_page, n_info_page,time_admin_page, n_admin_page)
 
 buy <- 100*(1 - sum(df$purchase==0)/length(df$purchase)) #percentage of purchases
 ```
@@ -129,8 +129,10 @@ panel.hist <- function(x, ...) {
 }
 
 
-# Plotting the correlation matrix
-suppressWarnings(pairs(df$purchase ~ df$page_values + df$exit_rates + df$bounce_rates + df$product_related_duration + df$product_related + df$administrative + df$visitor_type,
+# Plotting the correlation matrix : Full names did not fit so I changed the labels for the number and time on product related and administrative pages
+suppressWarnings(pairs(df$purchase ~ df$page_values + df$exit_rates + df$bounce_rates + df$time_prod_rel_page + df$n_prod_rel_page + df$n_admin_page + df$visitor_type, 
+      labels = c("Purchase", "Page values", "Exit rates", "Bounce rates", "Time.prod.rel", "Num.prod.rel", "Num.admin", "Visitor type"),
+      main = "Correlation matrix",
       upper.panel = panel.corrplot,   
       lower.panel = panel.smooth, 
       diag.panel = panel.hist,))
@@ -168,22 +170,22 @@ df%>%group_by(purchase, bounce_rates)%>% ggplot(aes(x=purchase, y=bounce_rates))
 df%>%group_by(purchase, special_day)%>% ggplot(aes(x=purchase, y=special_day)) + geom_boxplot()
 
 #productduration
-df%>%group_by(purchase, product_related_duration)%>% ggplot(aes(x=purchase, y=product_related_duration)) + geom_boxplot()
+df%>%group_by(purchase, time_prod_rel_page)%>% ggplot(aes(x=purchase, y=time_prod_rel_page)) + geom_boxplot()
 
-#product_related
-df%>%group_by(purchase, product_related)%>% ggplot(aes(x=purchase, y=product_related)) + geom_boxplot()
+#n_prod_rel_page
+df%>%group_by(purchase, n_prod_rel_page)%>% ggplot(aes(x=purchase, y=n_prod_rel_page)) + geom_boxplot()
 
-#informational_duration
-df%>%group_by(purchase, informational_duration)%>% ggplot(aes(x=purchase, y=informational_duration)) + geom_boxplot()
+#time_info_page
+df%>%group_by(purchase, time_info_page)%>% ggplot(aes(x=purchase, y=time_info_page)) + geom_boxplot()
 
-#informational
-df%>%group_by(purchase, informational)%>% ggplot(aes(x=purchase, y=informational)) + geom_boxplot()
+#n_info_page
+df%>%group_by(purchase, n_info_page)%>% ggplot(aes(x=purchase, y=n_info_page)) + geom_boxplot()
 
-#administrative_duration
-df%>%group_by(purchase, administrative_duration)%>% ggplot(aes(x=purchase, y=administrative_duration)) + geom_boxplot()
+#time_admin_page
+df%>%group_by(purchase, time_admin_page)%>% ggplot(aes(x=purchase, y=time_admin_page)) + geom_boxplot()
 
-#administrative
-df%>%group_by(purchase, administrative)%>% ggplot(aes(x=purchase, y=administrative)) + geom_boxplot()
+#n_admin_page
+df%>%group_by(purchase, n_admin_page)%>% ggplot(aes(x=purchase, y=n_admin_page)) + geom_boxplot()
 
 #month
 df%>%group_by(month, purchase)%>%summarise(number=n()) %>% mutate(freq = 100*number / sum(number)) %>% 
@@ -285,7 +287,7 @@ df<- df %>% mutate(
 
 df <- df %>%mutate(grouped_browser = as.factor(grouped_browser), grouped_traffic_type = as.factor(grouped_traffic_type), grouped_operating_systems = as.factor(grouped_operating_systems))
 
-df <- df%>%select(purchase,visitor_type,grouped_traffic_type,region,grouped_browser, grouped_operating_systems,page_values, exit_rates, bounce_rates, special_day, weekend, month, product_related_duration, product_related, informational_duration, informational,administrative_duration, administrative)
+df <- df%>%select(purchase,visitor_type,grouped_traffic_type,region,grouped_browser, grouped_operating_systems,page_values, exit_rates, bounce_rates, special_day, weekend, month, time_prod_rel_page, n_prod_rel_page, time_info_page, n_info_page,time_admin_page, n_admin_page)
 
 ```
 
@@ -295,12 +297,12 @@ df <- df%>%select(purchase,visitor_type,grouped_traffic_type,region,grouped_brow
 df <- df %>% mutate(
   log_exit = log(exit_rates +1 ),
   log_bounce = log(bounce_rates +1),
-  log_administrative = log(administrative +1),
-  log_admin_duration = log(administrative_duration +1),
-  log_prod_related_duration = log(product_related_duration +1),
-  log_prod_related = log(product_related +1),
-  log_inf_duration = log(informational_duration+1),
-  log_inf = log(informational_duration +1),
+  log_n_admin_page = log(n_admin_page +1),
+  log_admin_duration = log(time_admin_page +1),
+  log_prod_related_duration = log(time_prod_rel_page +1),
+  log_prod_related = log(n_prod_rel_page +1),
+  log_inf_duration = log(time_info_page+1),
+  log_inf = log(time_info_page +1),
   log_page_values = log(page_values +1)
 )
 
@@ -308,16 +310,16 @@ df <- df %>% mutate(
 df <- df %>% mutate(
   sqrt_exit = sqrt(exit_rates),
   sqrt_bounce = sqrt(bounce_rates),
-  sqrt_administrative = sqrt(administrative),
-  sqrt_time_admin = sqrt(administrative_duration),
-  sqrt_time_duration = sqrt(product_related_duration)
+  sqrt_n_admin_page = sqrt(n_admin_page),
+  sqrt_time_admin = sqrt(time_admin_page),
+  sqrt_time_duration = sqrt(time_prod_rel_page)
 )
 
 #interaction terms
 df <- df %>% mutate(
-  inter_product = product_related * product_related_duration,
-  inter_informational = informational * informational_duration,
-  inter_admin = administrative * administrative_duration
+  inter_product = n_prod_rel_page * time_prod_rel_page,
+  inter_n_info_page = n_info_page * time_info_page,
+  inter_admin = n_admin_page * time_admin_page
 )
 ```
 
@@ -326,7 +328,7 @@ df <- df %>% mutate(
 # 3. Model selection 
 
 ```{r model building, echo=FALSE, include = FALSE}
-m0_0 <- glm(purchase ~visitor_type + grouped_traffic_type + region + grouped_browser + grouped_operating_systems + page_values + exit_rates + bounce_rates + special_day + weekend + month + product_related_duration + product_related + informational_duration + informational + administrative_duration + administrative, family = 'binomial', data = df) #without the new included variables 
+m0_0 <- glm(purchase ~visitor_type + grouped_traffic_type + region + grouped_browser + grouped_operating_systems + page_values + exit_rates + bounce_rates + special_day + weekend + month + time_prod_rel_page + n_prod_rel_page + time_info_page + n_info_page + time_admin_page + n_admin_page, family = 'binomial', data = df) #without the new included variables 
 
 m0 <- glm(purchase ~., family = 'binomial', data = df) #with all the variables, including the new ones 
 
@@ -345,8 +347,8 @@ library('MASS')
 #model <- stepAIC(m0,direction = c("both", "backward", "forward"), trace = FALSE)
 
 model <- glm(purchase ~ visitor_type + grouped_traffic_type + 
-    page_values + exit_rates + month + product_related_duration + 
-    administrative + sqrt_exit + sqrt_bounce + sqrt_administrative + 
+    page_values + exit_rates + month + time_prod_rel_page + 
+    n_admin_page + sqrt_exit + sqrt_bounce + sqrt_n_admin_page + 
     sqrt_time_duration, family = "binomial", data =df)#this is the model given by stepAIC but as it's very long, I include it here directly
 summary(model)
 
@@ -356,16 +358,16 @@ Anova(m0, type = 'II', test ='LR') #most of them are not significant
 
 #trying to add some variables since m0 seems better
 improved_model <- glm(purchase ~ visitor_type + grouped_traffic_type + 
-    page_values + exit_rates + bounce_rates + month + product_related_duration + 
-    administrative + log_admin_duration +log_prod_related_duration + log_page_values + sqrt_exit + sqrt_bounce + sqrt_administrative + 
+    page_values + exit_rates + bounce_rates + month + time_prod_rel_page + 
+    n_admin_page + log_admin_duration +log_prod_related_duration + log_page_values + sqrt_exit + sqrt_bounce + sqrt_n_admin_page + 
     sqrt_time_duration, family = "binomial", data =df)
 summary(improved_model)
-Anova(improved_model, type = 'II', test ='LR') #sqrt_administrative is not significant
+Anova(improved_model, type = 'II', test ='LR') #sqrt_n_admin_page is not significant
 
 #by removing non significative variables one by one, I obtain the final model below
 improved_model_2 <- glm(purchase ~ visitor_type + grouped_traffic_type + 
-    page_values + exit_rates + bounce_rates + month + product_related_duration + 
-    administrative +log_prod_related_duration + log_page_values + sqrt_exit + sqrt_bounce  + 
+    page_values + exit_rates + bounce_rates + month + time_prod_rel_page + 
+    n_admin_page +log_prod_related_duration + log_page_values + sqrt_exit + sqrt_bounce  + 
     sqrt_time_duration, family = "binomial", data =df)
 summary(improved_model_2)
 anova_table <- Anova(improved_model_2, type = 'II', test ='LR') #with this one all the variables are significative under the 5%
@@ -395,11 +397,13 @@ table_results_OR
 
 The table below reports the three most practically significant variables (in terms of odds ratio) and their confidence interval.
 
-|                    | OR       | 2.5%     | 97.5%       | 
-|--------------------|----------|----------|-------------|
-| bounce rates       | $9.16^{8}$ | 10.5 | $2.58^{16}$    | 
-| sqrt(exit rates)   | $5.23^{3}$ | 26.8 | $1.15^{06}$    | 
-| log(page values)   | 3.73     | 3.47     | 4.01        | 
+*Table 1 : Odds ratio of the most significant variables*     
+
+|                    | OR         | 2.5%     | 97.5%       | 
+|--------------------|------------|----------|-------------|
+| bounce rates       | $9.16^{8}$ | 10.5     | $2.58^{16}$ | 
+| sqrt(exit rates)   | $5.23^{3}$ | 26.8     | $1.15^{06}$ | 
+| log(page values)   | 3.73       | 3.47     | 4.01        | 
 
 They are statistically significant (with the Type II test, and because 0 doesn't belong to the confidence interval). They are also practically significant because their odds ratio are greater than 1. Indeed, half of variables have odds ratio greater than 1 in the overall table and the rest mostly belongs to [0.2, 0.9]. Only the untransformed exit rate variable doesn't seem practically significant even though it is statistically significant, since the odds ratio associated is of order $10^{-18}$. The fact that the model also contains its square root captures most of the effect of the variable.
 
@@ -475,6 +479,8 @@ auc_improved_model_2 <- AUC_eval(improved_model_2,df)
 ```
 
 By denoting by model0 the basis model without added variables, model1 the model with all the added variables, model2 the one obtained with *stepAIC* and model3 the final model, the performance results are as follows :  
+
+*Table 2 : Models performance results*  
 
 |                    | model0 | model1 | model2 | model3 |
 |--------------------|--------|--------|--------|--------|
