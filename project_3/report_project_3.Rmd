@@ -223,6 +223,10 @@ The estimated coefficient associated with the home team is given in the followin
 | During covid | 0.01     | 0.09      | 0.11    | 0.91       |-0.17| 0.19 |
 | After covid  | 0.20     | 0.09      | 2.22    | 0.03       |0.02 | 0.39 |
 
+The equation for this model can be written 
+$N_{goals} = \beta*Home + \epsilon$
+
+where $\beta$ is the estimate, $\epsilon$ is the residual, $Home$ denotes the fact that the teams plays home and $N_{goals}$ is the number of goals.
 
 ## b. Poisson model
 Another way of modelling the home advantage is to use a Poisson model (or log linear model). We now consider that a team has an advantage if they win more when they play at home. Again we consider the three phases, before, during and after covid-19 and estimate the coefficient associated with playing home.
@@ -249,11 +253,18 @@ Table 2 displays the results.
 | During covid | -0.06    | 0.12      | -0.52   | 0.6        | -0.28  | 0.17  |
 | After covid  | 0.23     | 0.12      | 1.99    | 0.047      | 0.004  | 0.47  |
 
+The equation for this model can be written 
+$log(\mathbb{E}(N_{goals})) = \beta*Home + \epsilon$
+
+where $\beta$ is the estimate, $\epsilon$ is the residual, $Home$ denotes the fact that the teams plays home and $N_{goals}$ is the number of goals.
 
 
 # 4. Residuals diagnostics
 ## a. During 2019-20 season
-```{r residuals 2019, echo=FALSE, include = FALSE}
+We can fit the previous model only for the 2019-2020 season which is the most impacted by covid-19. The diagnostics we obtain are presented in *Figure 2*. The residuals have a strange shape which could mean the model is not adequate. The normal QQ-plot shows that the residuals are skewed with some outliers. One could refit the model without those influential outliers to see to what extent the model is changed. The scale location and constant leverage also enable to identify those outliers.
+
+
+```{r, fig.align="center", fig.cap="Figure 2 : Residuals diagnostics for the model with only the 2019-20 season"}
 #restrict the number of variables
 df_restr_19 <- df %>% select(Date, HomeTeam, AwayTeam, FTR, FTHG, FTAG)
 
@@ -313,14 +324,19 @@ df_restr_19 <- df_restr_19 %>% select(date, home_goals, away_goals, team_name, t
 df_restr_19 <- df_restr_19%>%select(team_name, team_status, win) %>% filter(win == "1")%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
 
 model_19 <- glm(df_restr_19$number ~ df_restr_19$team_status, family=poisson(link="log"))
-summary(model_19)
 
+
+#res <- residuals(model_19, type="deviance")
 par(mfrow=c(2,2))
 plot(model_19)
 ```
 
+
+
 ## b. All seasons together
-```{r residuals all, echo=FALSE, include = FALSE}
+By fitting the model for all the seasons together (which captures an overall positive effect of playing home even though the effect is not present during covid), we obtain the diagnostics displayed in *Figure 3*. They globally have the same shape as the previous ones. Thus, we identify some influential outliers which indicate that the model is not perfect.
+
+```{r, fig.align="center", fig.cap="Figure 3 : Residuals diagnostics for the model considering all seasons"}
 par(mfrow=c(2,2))
 model_wins <- glm(df_wins_all$number ~ df_wins_all$team_status, family=poisson(link="log"))
 plot(model_wins)
@@ -329,22 +345,16 @@ plot(model_wins)
 # 5. Stability 
 ## a. Promoted and relegated teams
 The model we built so far didn't take in account the fact that some teams are relegated and some other promoted from season to season. We discard those teams and refit the Poisson model of part 5.b. The estimated coefficients are as follows 
-*Table 3 : Estimated coefficients of the Poisson model without relegated and promoted teams*
-
-|              | Estimate | Std.Error | t value | Pr(>\|t\|) |
-|--------------|----------|-----------|---------|------------|
-| Before covid | 0.28     | 0.09      | 2.86    | 0.004      |
-| During covid | -0.07    | 0.13      | -0.51   | 0.61       |
-| After covid  | 0.28     | 0.13      | 2.29    | 0.047      |
-
 ```{r promoted, echo=FALSE, include = FALSE}
 #relegated/promoted effect
 A = setdiff(df18$HomeTeam,df19$HomeTeam) #relegated (those in for 18 but not in 19)
 B = setdiff(df19$HomeTeam,df18$HomeTeam) #promoted (those in 19 but not in 18)
 C = setdiff(df19$HomeTeam, df20$HomeTeam) #relegated
 D = setdiff(df20$HomeTeam, df19$HomeTeam) #promoted
+E = setdiff(df20$HomeTeam, df21$HomeTeam ) #relegated
+f = setdiff(df21$HomeTeam, df20$HomeTeam ) #promoted
 
-names_del <- unique(c(A, B, C, D)) #we will not take in account the ones that were relegated and promoted
+names_del <- unique(c(A, B, C, D, E, f)) #we will not take in account the ones that were relegated and promoted
 
 df_wins_before_rel <- df_restr %>% filter(covid_before_after =='Pre-covid')%>%  filter(win == "1")%>% filter(!(team_name%in%names_del))%>%select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
 
@@ -363,17 +373,18 @@ summary(model_wins_after_rel)
 
 ```
 
-
-## b. Draw effect
-Another limit of our model in 5.b was that we only counted the number of wins, but we could also include the draws as a victory for both teams. By doing this, the coefficients estimation gives
-
-*Table 4 : Estimated coefficients of the Poisson model taking in account the draws*
+*Table 3 : Estimated coefficients of the Poisson model without relegated and promoted teams*
 
 |              | Estimate | Std.Error | t value | Pr(>\|t\|) |
 |--------------|----------|-----------|---------|------------|
-| Before covid | 0.21     | 0.07      | 2.9     | 0.004      |
-| During covid | -0.04    | 0.09      | -0.42   | 0.68       |
-| After covid  | 0.15     | 0.09      | 1.57    | 0.12       |
+| Before covid | 0.28     | 0.1       | 2.86    | 0.004      |
+| During covid | -0.07    | 0.13      | -0.51   | 0.61       |
+| After covid  | 0.29     | 0.13      | 2.29    | 0.02       |
+
+
+
+## b. Draw effect
+Another limit of our model in 5.b was that we only counted the number of wins, but we could also include the draws as a victory for both teams. By doing this, the coefficients estimation gives
 
 
 ```{r draw effect, echo=FALSE, include = FALSE}
@@ -396,10 +407,29 @@ summary(model_wins_after_bis)
 ```
 
 
+*Table 4 : Estimated coefficients of the Poisson model taking in account the draws*
+
+|              | Estimate | Std.Error | t value | Pr(>\|t\|) |
+|--------------|----------|-----------|---------|------------|
+| Before covid | 0.21     | 0.07      | 2.9     | 0.004      |
+| During covid | -0.04    | 0.09      | -0.42   | 0.68       |
+| After covid  | 0.15     | 0.09      | 1.57    | 0.12       |
+
+
+
 # 6. Interpretation
+The first model in section 3.a is a first approach to quantify the home advantage taking in account the difference of number of goals. It appears very clearly that there was a home advantage before covid-19 occurred since the coefficient associated to playing home is positive and statistically significant at every usual level. It is also practically significant since its value is 0.27 (95CI = [0.14, 0.4]), which means that a team marks 0.27 more goals when they play at home. During covid-19, the coefficient associated to playing home is not statistically significant and 0 belongs to the confidence interval, which means that there is no effect of playing home rather than playing away. After the closed door period, the effect of playing home becomes again significant statistically (at the 5% level) and practically. 
+
+The second approach to this problem is to consider the number of victories (strictly victory) and model it by a poisson or log-linear regression. The estimated coefficient before covid-19 is again statistically and practically (0.32) significant at the usual levels (5% and 1%). Again, the coefficient associated to the period during covid-19 is not significant so there was no home advantage. Finally, the home advantage reappears after the opening of stadiums the same way we noticed it with the linear regression.
+
 
 
 # 7. Discussion
+The models built seem plausible and capture the home advantage decrease during covid-19 due to the closed to public stadiums. The diagnostics and stability analysis showed that the model was strong which gives confidence. 
+
+The interesting conclusion of our work is that after covid-19, the home advantage was rebuilt and did not disappear. It is generally of the same magnitude but a bit less important. To explain that decrease, some plausible hypothesis could be the fact that the teams accustomed themselves to empty stadiums, or that the supporters did not act the same way before and after the covid period.
+
+We did not explore the yellow and red cards that were studied by Garicano and Palacios-Huertas [1], which could be also very interesting. We also analyzed in the linear regression model the number of goals but we could have instead analyzed the number of targeted goals. 
 
 
 # 8. References
