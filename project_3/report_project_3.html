@@ -433,6 +433,8 @@ covid-19.</p>
 </div>
 <div id="model-building" class="section level1">
 <h1>3. Model building</h1>
+<div id="a.-linear-model" class="section level2">
+<h2>a. Linear model</h2>
 <p>Home advantage can be seen through different indicators. As a first
 approach, we consider that a team has an advantage if they score more
 goals when they are at home. We build a linear model for each covid
@@ -441,7 +443,16 @@ playing home.</p>
 <p>The estimated coefficient associated with the home team is given in
 the following table :</p>
 <p><em>Table1 : Estimated coefficients with the linear model</em></p>
-<table>
+<table style="width:100%;">
+<colgroup>
+<col width="20%" />
+<col width="14%" />
+<col width="16%" />
+<col width="13%" />
+<col width="17%" />
+<col width="7%" />
+<col width="8%" />
+</colgroup>
 <thead>
 <tr class="header">
 <th></th>
@@ -449,6 +460,8 @@ the following table :</p>
 <th>Std.Error</th>
 <th>t value</th>
 <th>Pr(&gt;|t|)</th>
+<th>2.5%</th>
+<th>97.5%</th>
 </tr>
 </thead>
 <tbody>
@@ -458,6 +471,8 @@ the following table :</p>
 <td>0.069</td>
 <td>3.93</td>
 <td>9.04e-05</td>
+<td>0.14</td>
+<td>0.4</td>
 </tr>
 <tr class="even">
 <td>During covid</td>
@@ -465,6 +480,8 @@ the following table :</p>
 <td>0.09</td>
 <td>0.11</td>
 <td>0.91</td>
+<td>-0.17</td>
+<td>0.19</td>
 </tr>
 <tr class="odd">
 <td>After covid</td>
@@ -472,9 +489,14 @@ the following table :</p>
 <td>0.09</td>
 <td>2.22</td>
 <td>0.03</td>
+<td>0.02</td>
+<td>0.39</td>
 </tr>
 </tbody>
 </table>
+</div>
+<div id="b.-poisson-model" class="section level2">
+<h2>b. Poisson model</h2>
 <p>Another way of modelling the home advantage is to use a Poisson model
 (or log linear model). We now consider that a team has an advantage if
 they win more when they play at home. Again we consider the three
@@ -483,6 +505,78 @@ associated with playing home.</p>
 <p>Table 2 displays the results.</p>
 <p><em>Table2 : Estimated coefficients with the Poisson
 regression</em></p>
+<table>
+<colgroup>
+<col width="19%" />
+<col width="14%" />
+<col width="15%" />
+<col width="12%" />
+<col width="16%" />
+<col width="11%" />
+<col width="9%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>Estimate</th>
+<th>Std.Error</th>
+<th>t value</th>
+<th>Pr(&gt;|t|)</th>
+<th>2.5%</th>
+<th>97.5%</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Before covid</td>
+<td>0.32</td>
+<td>0.09</td>
+<td>3.57</td>
+<td>0.0003</td>
+<td>0.15</td>
+<td>0.5</td>
+</tr>
+<tr class="even">
+<td>During covid</td>
+<td>-0.06</td>
+<td>0.12</td>
+<td>-0.52</td>
+<td>0.6</td>
+<td>-0.28</td>
+<td>0.17</td>
+</tr>
+<tr class="odd">
+<td>After covid</td>
+<td>0.23</td>
+<td>0.12</td>
+<td>1.99</td>
+<td>0.047</td>
+<td>0.004</td>
+<td>0.47</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div id="residuals-diagnostics" class="section level1">
+<h1>4. Residuals diagnostics</h1>
+<div id="a.-during-2019-20-season" class="section level2">
+<h2>a. During 2019-20 season</h2>
+</div>
+<div id="b.-all-seasons-together" class="section level2">
+<h2>b. All seasons together</h2>
+</div>
+</div>
+<div id="stability" class="section level1">
+<h1>5. Stability</h1>
+<div id="a.-promoted-and-relegated-teams" class="section level2">
+<h2>a. Promoted and relegated teams</h2>
+<p>The model we built so far didn’t take in account the fact that some
+teams are relegated and some other promoted from season to season. We
+discard those teams and refit the Poisson model of part 5.b. The
+estimated coefficients are as follows <em>Table 3 : Estimated
+coefficients of the Poisson model without relegated and promoted
+teams</em></p>
 <table>
 <thead>
 <tr class="header">
@@ -496,33 +590,70 @@ regression</em></p>
 <tbody>
 <tr class="odd">
 <td>Before covid</td>
-<td>0.32</td>
+<td>0.28</td>
 <td>0.09</td>
-<td>3.57</td>
-<td>0.0003</td>
+<td>2.86</td>
+<td>0.004</td>
 </tr>
 <tr class="even">
 <td>During covid</td>
-<td>-0.06</td>
-<td>0.12</td>
-<td>-0.52</td>
-<td>0.6</td>
+<td>-0.07</td>
+<td>0.13</td>
+<td>-0.51</td>
+<td>0.61</td>
 </tr>
 <tr class="odd">
 <td>After covid</td>
-<td>0.23</td>
-<td>0.12</td>
-<td>1.99</td>
+<td>0.28</td>
+<td>0.13</td>
+<td>2.29</td>
 <td>0.047</td>
 </tr>
 </tbody>
 </table>
 </div>
-<div id="residuals-diagnostics" class="section level1">
-<h1>4. Residuals diagnostics</h1>
+<div id="b.-draw-effect" class="section level2">
+<h2>b. Draw effect</h2>
+<p>Another limit of our model in 5.b was that we only counted the number
+of wins, but we could also include the draws as a victory for both
+teams. By doing this, the coefficients estimation gives</p>
+<p><em>Table 4 : Estimated coefficients of the Poisson model taking in
+account the draws</em></p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th>Estimate</th>
+<th>Std.Error</th>
+<th>t value</th>
+<th>Pr(&gt;|t|)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Before covid</td>
+<td>0.21</td>
+<td>0.07</td>
+<td>2.9</td>
+<td>0.004</td>
+</tr>
+<tr class="even">
+<td>During covid</td>
+<td>-0.04</td>
+<td>0.09</td>
+<td>-0.42</td>
+<td>0.68</td>
+</tr>
+<tr class="odd">
+<td>After covid</td>
+<td>0.15</td>
+<td>0.09</td>
+<td>1.57</td>
+<td>0.12</td>
+</tr>
+</tbody>
+</table>
 </div>
-<div id="sensitivitystability" class="section level1">
-<h1>5. Sensitivity/stability</h1>
 </div>
 <div id="interpretation" class="section level1">
 <h1>6. Interpretation</h1>

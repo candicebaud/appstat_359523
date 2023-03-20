@@ -136,7 +136,7 @@ df_wins_all <- as.data.frame(df_restr %>% select(team_name, team_status, win)%>%
 
 df_wins_before <- as.data.frame(df_restr %>% filter(covid_before_after =='Pre-covid')%>%  filter(win == "1")%>% select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number))
 
-df_wins_during <- df_restr %>% filter(covid_before_after =='In_covid')%>%  filter(win == "1")%>% select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
+df_wins_during <- df_restr %>% filter(covid_before_after =='In-covid')%>%  filter(win == "1")%>% select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
 
 df_wins_after <- df_restr %>% filter(covid_before_after =='Post-covid')%>%  filter(win == "1")%>% select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
 
@@ -180,12 +180,66 @@ test_2%>% ggplot(aes(x=date, y=avg_diff)) +geom_line() + geom_hline(yintercept= 
 par(mfrow=c(2,2))
 plot(model_wins_before)
 
+confint(linear_model_after)
 ```
 
 
 
+## stability analyze 
+```{r stability, echo=FALSE, include = FALSE}
+#relegated/promoted effect
+unique(df18$HomeTeam)
+unique(df19$HomeTeam)
+
+A = setdiff(df18$HomeTeam,df19$HomeTeam) #relegated (those in for 18 but not in 19)
+B = setdiff(df19$HomeTeam,df18$HomeTeam) #promoted (those in 19 but not in 18)
+C = setdiff(df19$HomeTeam, df20$HomeTeam) #relegated
+D = setdiff(df20$HomeTeam, df19$HomeTeam) #promoted
+
+names_del <- unique(c(A, B, C, D))
+
+df_wins_all_rel <- as.data.frame(df_restr %>% select(team_name, team_status, win)%>% filter(win == "1") %>% filter(!(team_name%in%names_del))%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number))
+
+df_wins_before_rel <- as.data.frame(df_restr %>% filter(covid_before_after =='Pre-covid')%>%  filter(win == "1")%>% filter(!(team_name%in%names_del))%>%select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number))
+
+df_wins_during_rel <- df_restr %>% filter(covid_before_after =='In-covid')%>%  filter(win == "1")%>% filter(!(team_name%in%names_del))%>%select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
+
+df_wins_after_rel <- df_restr %>% filter(covid_before_after =='Post-covid')%>%  filter(win == "1")%>% filter(!(team_name%in%names_del))%>%select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
+
+model_wins_before_rel <- glm(df_wins_before_rel$number ~ df_wins_before_rel$team_status, family=poisson(link="log"))
+summary(model_wins_before_rel)
+
+model_wins_during_rel <- glm(df_wins_during_rel$number ~ df_wins_during_rel$team_status, family=poisson(link="log"))
+summary(model_wins_during_rel)
+
+model_wins_after_rel <- glm(df_wins_after_rel$number ~ df_wins_after_rel$team_status, family=poisson(link="log"))
+summary(model_wins_after_rel)
 
 
+
+#including a draw effect
+#if we consider that draw is almost like winning 
+df_wins_all_bis <- as.data.frame(df_restr %>% select(team_name, team_status, win)%>% filter(win != "0") %>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number))
+
+df_wins_before_bis <- as.data.frame(df_restr %>% filter(covid_before_after =='Pre-covid')%>%  filter(win != "0")%>% select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number))
+
+df_wins_during_bis <- df_restr %>% filter(covid_before_after =='In-covid')%>%  filter(win != "0")%>% select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
+
+df_wins_after_bis <- df_restr %>% filter(covid_before_after =='Post-covid')%>%  filter(win != "0")%>% select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
+
+
+model_wins_bis <- glm(df_wins_all_bis$number ~ df_wins_all_bis$team_status, family=poisson(link="log"))
+summary(model_wins_bis)
+
+model_wins_before_bis <- glm(df_wins_before_bis$number ~ df_wins_before_bis$team_status, family=poisson(link="log"))
+summary(model_wins_before_bis)
+
+model_wins_during_bis <- glm(df_wins_during_bis$number ~ df_wins_during_bis$team_status, family=poisson(link="log"))
+summary(model_wins_during_bis)
+
+model_wins_after_bis <- glm(df_wins_after_bis$number ~ df_wins_after_bis$team_status, family=poisson(link="log"))
+summary(model_wins_after_bis)
+```
 
 
 

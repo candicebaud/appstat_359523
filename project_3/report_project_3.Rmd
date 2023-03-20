@@ -187,6 +187,8 @@ The figure shows a slight advantage of playing home since the average is positiv
 In the next section, we model the data to better understand what is happening and to what extent the home advantage persisted during covid-19. 
 
 # 3. Model building
+
+## a. Linear model
 Home advantage can be seen through different indicators. As a first approach, we consider that a team has an advantage if they score more goals when they are at home. We build a linear model for each covid state (before, during, after) and evaluate in each state the effect of playing home.
 
 ```{r linear model, echo=FALSE, include = FALSE}
@@ -213,13 +215,14 @@ The estimated coefficient associated with the home team is given in the followin
 *Table1 : Estimated coefficients with the linear model*
 
 
-|              | Estimate | Std.Error | t value | Pr(>\|t\|) |
-|--------------|----------|-----------|---------|------------|
-| Before covid | 0.27     | 0.069     | 3.93    | 9.04e-05   |
-| During covid | 0.01     | 0.09      | 0.11    | 0.91       |
-| After covid  | 0.20     | 0.09      | 2.22    | 0.03       |
+|              | Estimate | Std.Error | t value | Pr(>\|t\|) |2.5% | 97.5%|
+|--------------|----------|-----------|---------|------------|-----|------|
+| Before covid | 0.27     | 0.069     | 3.93    | 9.04e-05   |0.14 | 0.4  | 
+| During covid | 0.01     | 0.09      | 0.11    | 0.91       |-0.17| 0.19 |
+| After covid  | 0.20     | 0.09      | 2.22    | 0.03       |0.02 | 0.39 |
 
 
+## b. Poisson model
 Another way of modelling the home advantage is to use a Poisson model (or log linear model). We now consider that a team has an advantage if they win more when they play at home. Again we consider the three phases, before, during and after covid-19 and estimate the coefficient associated with playing home.
 
 ```{r poisson model, echo=FALSE, include = FALSE}
@@ -238,18 +241,92 @@ Table 2 displays the results.
 *Table2 : Estimated coefficients with the Poisson regression*
 
 
-|              | Estimate | Std.Error | t value | Pr(>\|t\|) |
-|--------------|----------|-----------|---------|------------|
-| Before covid | 0.32     | 0.09      | 3.57    | 0.0003     |
-| During covid | -0.06    | 0.12      | -0.52   | 0.6        |
-| After covid  | 0.23     | 0.12      | 1.99    | 0.047      |
+|              | Estimate | Std.Error | t value | Pr(>\|t\|) | 2.5%   | 97.5% |
+|--------------|----------|-----------|---------|------------|--------|-------|
+| Before covid | 0.32     | 0.09      | 3.57    | 0.0003     | 0.15   | 0.5   |
+| During covid | -0.06    | 0.12      | -0.52   | 0.6        | -0.28  | 0.17  |
+| After covid  | 0.23     | 0.12      | 1.99    | 0.047      | 0.004  | 0.47  |
+
 
 
 # 4. Residuals diagnostics
+## a. During 2019-20 season
 
-# 5. Sensitivity/stability 
+## b. All seasons together
+
+
+# 5. Stability 
+## a. Promoted and relegated teams
+The model we built so far didn't take in account the fact that some teams are relegated and some other promoted from season to season. We discard those teams and refit the Poisson model of part 5.b. The estimated coefficients are as follows 
+*Table 3 : Estimated coefficients of the Poisson model without relegated and promoted teams*
+
+|              | Estimate | Std.Error | t value | Pr(>\|t\|) |
+|--------------|----------|-----------|---------|------------|
+| Before covid | 0.28     | 0.09      | 2.86    | 0.004      |
+| During covid | -0.07    | 0.13      | -0.51   | 0.61       |
+| After covid  | 0.28     | 0.13      | 2.29    | 0.047      |
+
+```{r promoted, echo=FALSE, include = FALSE}
+#relegated/promoted effect
+A = setdiff(df18$HomeTeam,df19$HomeTeam) #relegated (those in for 18 but not in 19)
+B = setdiff(df19$HomeTeam,df18$HomeTeam) #promoted (those in 19 but not in 18)
+C = setdiff(df19$HomeTeam, df20$HomeTeam) #relegated
+D = setdiff(df20$HomeTeam, df19$HomeTeam) #promoted
+
+names_del <- unique(c(A, B, C, D)) #we will not take in account the ones that were relegated and promoted
+
+df_wins_before_rel <- df_restr %>% filter(covid_before_after =='Pre-covid')%>%  filter(win == "1")%>% filter(!(team_name%in%names_del))%>%select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
+
+df_wins_during_rel <- df_restr %>% filter(covid_before_after =='In-covid')%>%  filter(win == "1")%>% filter(!(team_name%in%names_del))%>%select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
+
+df_wins_after_rel <- df_restr %>% filter(covid_before_after =='Post-covid')%>%  filter(win == "1")%>% filter(!(team_name%in%names_del))%>%select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
+
+model_wins_before_rel <- glm(df_wins_before_rel$number ~ df_wins_before_rel$team_status, family=poisson(link="log"))
+summary(model_wins_before_rel)
+
+model_wins_during_rel <- glm(df_wins_during_rel$number ~ df_wins_during_rel$team_status, family=poisson(link="log"))
+summary(model_wins_during_rel)
+
+model_wins_after_rel <- glm(df_wins_after_rel$number ~ df_wins_after_rel$team_status, family=poisson(link="log"))
+summary(model_wins_after_rel)
+
+```
+
+
+## b. Draw effect
+Another limit of our model in 5.b was that we only counted the number of wins, but we could also include the draws as a victory for both teams. By doing this, the coefficients estimation gives
+
+*Table 4 : Estimated coefficients of the Poisson model taking in account the draws*
+
+|              | Estimate | Std.Error | t value | Pr(>\|t\|) |
+|--------------|----------|-----------|---------|------------|
+| Before covid | 0.21     | 0.07      | 2.9     | 0.004      |
+| During covid | -0.04    | 0.09      | -0.42   | 0.68       |
+| After covid  | 0.15     | 0.09      | 1.57    | 0.12       |
+
+
+```{r draw effect, echo=FALSE, include = FALSE}
+#if we consider that draw is almost like winning 
+df_wins_before_bis <- as.data.frame(df_restr %>% filter(covid_before_after =='Pre-covid')%>%  filter(win != "0")%>% select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number))
+
+df_wins_during_bis <- df_restr %>% filter(covid_before_after =='In-covid')%>%  filter(win != "0")%>% select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
+
+df_wins_after_bis <- df_restr %>% filter(covid_before_after =='Post-covid')%>%  filter(win != "0")%>% select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
+
+
+model_wins_before_bis <- glm(df_wins_before_bis$number ~ df_wins_before_bis$team_status, family=poisson(link="log"))
+summary(model_wins_before_bis)
+
+model_wins_during_bis <- glm(df_wins_during_bis$number ~ df_wins_during_bis$team_status, family=poisson(link="log"))
+summary(model_wins_during_bis)
+
+model_wins_after_bis <- glm(df_wins_after_bis$number ~ df_wins_after_bis$team_status, family=poisson(link="log"))
+summary(model_wins_after_bis)
+```
+
 
 # 6. Interpretation
+
 
 # 7. Discussion
 
