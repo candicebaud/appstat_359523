@@ -39,19 +39,11 @@ In this project, we analyze the English Premier League during the seasons 2018-2
 In Section 2, we introduce the dataset, and in Section 3, we describe our model building procedure and present the final model. Section 4 analyzes our model via diagnostics, and we will analyze its stability in Section 5. In Section 6, we interpret and analyze the results, and finally, we conclude the work done and discuss potential improvements in Section 7.
 
 # 2. Data characteristics
-The data on which the analyzes are made is composed of four data sets that were concatenated together. They all contain the match results for the four English premier league seasons :
-
-+2018-2019
-+2019-2020
-+2020-2021
-+2021-2022
+The data on which the analyzes are made is composed of four data sets that were concatenated together. They all contain the match results for four English premier league seasons (2018-2019, 2019-2020, 2020-2021, 2021-2022).
 
 The available variables contain match results (winning team, home and away team, goals from each team at half time and full time), match statistics (number of shots, number of shots on target and yellow and red cards for each team), betting odds, number of BetBrain bookmakers used to calculate match odds averages and maximums, and total goals betting odds. 
 
-The variable that we will mostly use are the ones regarding match results. Indeed, we will make model regarding different definitions of the home advantage :
-
-+the fact that a team is more or less likely to win if they play at home
-+the fact that a team will goal more or less if they play at home 
+The variables that we mostly use are the ones regarding match results. We build two models regarding two different definitions of the home advantage. First, we consider it as the fact that a team will goal more or less if they play at home. Secondly, we consider it as the fact that a team is more or less likely to win if they play at home. 
 
 ```{r tidy the data and rename, echo=FALSE}
 #merge the data sets together
@@ -177,8 +169,8 @@ test_2<- df_restr %>%
 
 test_2 %>% ggplot(aes(x=date, y=avg_diff)) + 
   geom_line() + 
-  geom_hline(yintercept= mean(test_2$avg_diff), col = 'red')+ 
-  geom_rect(aes(xmin = as.Date("2020-03-12", format = "%Y-%m-%d"), xmax = as.Date("2021-06-01", format = "%Y-%m-%d"), ymin = -Inf, ymax = Inf), fill = "blue", alpha = 0.003) + 
+  geom_hline(yintercept= mean(test_2$avg_diff), col = 'red', show.legend = T)+ 
+  geom_rect(aes(xmin = as.Date("2020-03-12", format = "%Y-%m-%d"), xmax = as.Date("2021-06-01", format = "%Y-%m-%d"), ymin = -Inf, ymax = Inf), fill = "blue", alpha = 0.003) +
   labs(x = 'Date', y = 'Average difference of goals', title = 'Difference between home goals and away goals')
 
 
@@ -261,7 +253,7 @@ where $\beta$ is the estimate, $\epsilon$ is the residual, $Home$ denotes the fa
 
 # 4. Residuals diagnostics
 ## a. During 2019-20 season
-We can fit the previous model only for the 2019-2020 season which is the most impacted by covid-19. The diagnostics we obtain are presented in *Figure 2*. The residuals have a strange shape which could mean the model is not adequate. The normal QQ-plot shows that the residuals are skewed with some outliers. One could refit the model without those influential outliers to see to what extent the model is changed. The scale location and constant leverage also enable to identify those outliers.
+We can fit the previous model only for the 2019-2020 season which is the most impacted by covid-19. The diagnostics we obtain are presented in *Figure 2*. The residual plot shows two distinct bands which correspond to the two values of the variable *team status* : Home team corresponding to playing home, and Away team corresponding to playing away. The normal QQ-plot shows that the residuals are skewed with some outliers. One could refit the model without those influential outliers to see to what extent the model is changed. The scale location and constant leverage also enable to identify those outliers.
 
 
 ```{r, fig.align="center", fig.cap="Figure 2 : Residuals diagnostics for the model with only the 2019-20 season"}
@@ -334,13 +326,13 @@ plot(model_19)
 
 
 ## b. All seasons together
-By fitting the model for all the seasons together (which captures an overall positive effect of playing home even though the effect is not present during covid), we obtain the diagnostics displayed in *Figure 3*. They globally have the same shape as the previous ones. Thus, we identify some influential outliers which indicate that the model is not perfect.
+By fitting the model for all the seasons together (which captures an overall positive effect of playing home even though the effect is not present during covid), we obtain the diagnostics displayed in *Figure 3*. They globally have the same shape as for the model fitted only on the 2019-20 season. Thus, we again identify some influential outliers, mostly on the top right of the QQplot.
 
 ```{r, fig.align="center", fig.cap="Figure 3 : Residuals diagnostics for the model considering all seasons"}
 par(mfrow=c(2,2))
 model_wins <- glm(df_wins_all$number ~ df_wins_all$team_status, family=poisson(link="log"))
 plot(model_wins)
-```
+```   
 
 # 5. Stability 
 ## a. Promoted and relegated teams

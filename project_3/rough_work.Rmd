@@ -321,10 +321,6 @@ summary(model_wins_during_bis)
 model_wins_after_bis <- glm(df_wins_after_bis$number ~ df_wins_after_bis$team_status, family=poisson(link="log"))
 summary(model_wins_after_bis)
 
-hist(df_wins_after_bis$number)
-hist(df_wins_all$number)
-
-
 ```
 
 
