@@ -85,7 +85,7 @@ df_restr <- df_restr %>% mutate(
 
 df_restr <- df_restr %>% mutate(
   covid_before_after = as.factor(case_when(
-      Date >= "2020-03-12" & Date <= "2021-06-01"~ "In_covid",
+      Date >= "2020-03-12" & Date <= "2021-06-01"~ "In-covid",
       Date <= "2020-03-12" ~"Pre-covid",
       TRUE ~ "Post-covid"
   ))
@@ -117,7 +117,7 @@ linear_model_before <- lm(goals ~ team_status, data = df_before )
 summary(linear_model_before)
 
 #during covid 
-df_during <- df_restr %>% filter(covid_before_after == 'In_covid')
+df_during <- df_restr %>% filter(covid_before_after == 'In-covid')
 linear_model_during <- lm(goals ~ team_status , data = df_during)
 summary(linear_model_during)
 
@@ -177,10 +177,91 @@ test_2%>% ggplot(aes(x=date, y=avg_diff)) +geom_line() + geom_hline(yintercept= 
 
 ## Residual and statbility
 ```{r residuals, echo=FALSE, include = FALSE}
-par(mfrow=c(2,2))
-plot(model_wins_before)
+#restrict the number of variables
+df_restr_19 <- df %>% select(Date, HomeTeam, AwayTeam, FTR, FTHG, FTAG)
 
-confint(linear_model_after)
+#pivot longer to create two rows for each match
+df_restr_19 <- df_restr_19 %>% pivot_longer(cols = c(HomeTeam, AwayTeam), names_to = 'Team')
+
+#variable win
+df_restr_19 <- df_restr_19 %>% mutate(
+  win = as.factor(case_when(
+    Team == 'HomeTeam' & FTR == 'H' ~ 1, 
+    Team == 'AwayTeam' & FTR == 'H' ~ 0,
+    Team == 'HomeTeam' & FTR == 'A' ~ 0,
+    Team == 'AwayTeam' & FTR == 'A' ~ 1,
+    Team == 'HomeTeam' & FTR == 'D' ~ 2,
+    Team == 'AwayTeam' & FTR == 'D' ~ 2,
+    
+  )
+))
+
+#score variable 
+df_restr_19 <- df_restr_19 %>% mutate(
+  goals = case_when(
+    Team == 'HomeTeam' ~ FTHG,
+    Team == 'AwayTeam' ~ FTAG
+  )
+)
+
+#variable to assess if covid or not
+df_restr_19 <- df_restr_19 %>% mutate(
+  covid = as.factor(case_when(
+      Date >= "2020-03-12" & Date <= "2021-06-01"~ 1,
+      TRUE ~ 0
+  ))
+)
+
+df_restr_19 <- df_restr_19 %>% mutate(
+  covid_before_after = as.factor(case_when(
+      Date >= "2020-03-12" & Date <= "2021-06-01"~ "In-covid",
+      Date <= "2020-03-12" ~"Pre-covid",
+      TRUE ~ "Post-covid"
+  ))
+)
+
+#rename variables
+df_restr_19 <- df_restr_19 %>% mutate(
+  home_goals = FTHG,
+  away_goals = FTAG,
+  team_name = value,
+  team_status = Team,
+  covid_y_n = covid,
+  date = Date
+)
+
+#final data set
+df_restr_19 <- df_restr_19 %>% select(date, home_goals, away_goals, team_name, team_status, covid_y_n, covid_before_after, win, goals )
+
+df_restr_19 <- df_restr_19%>%select(team_name, team_status, win) %>% filter(win == "1")%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
+
+model_19 <- glm(df_restr_19$number ~ df_restr_19$team_status, family=poisson(link="log"))
+summary(model_19)
+
+par(mfrow=c(2,2))
+plot(model_19)
+
+plot(model_19$residuals, model_19$fitted.values, ylim=c(0,30))
+
+anova(model_19, test ='Chisq')
+
+library(car)
+influencePlot(model_19)
+
+library(AER)
+deviance(model_19)/model_19$df.residual
+dispersiontest(model_19)
+
+res <- residuals(model_19, type="deviance")
+plot(log(predict(model_19)), res)
+abline(h=0, lty=2)
+qqnorm(res)
+qqline(res)
+
+
+#all seasons
+par(mfrow=c(2,2))
+plot(model_wins)
 ```
 
 

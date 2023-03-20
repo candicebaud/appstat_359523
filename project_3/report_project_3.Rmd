@@ -40,6 +40,7 @@ In Section 2, we introduce the dataset, and in Section 3, we describe our model 
 
 # 2. Data characteristics
 The data on which the analyzes are made is composed of four data sets that were concatenated together. They all contain the match results for the four English premier league seasons :
+
 +2018-2019
 +2019-2020
 +2020-2021
@@ -48,6 +49,7 @@ The data on which the analyzes are made is composed of four data sets that were 
 The available variables contain match results (winning team, home and away team, goals from each team at half time and full time), match statistics (number of shots, number of shots on target and yellow and red cards for each team), betting odds, number of BetBrain bookmakers used to calculate match odds averages and maximums, and total goals betting odds. 
 
 The variable that we will mostly use are the ones regarding match results. Indeed, we will make model regarding different definitions of the home advantage :
+
 +the fact that a team is more or less likely to win if they play at home
 +the fact that a team will goal more or less if they play at home 
 
@@ -251,9 +253,78 @@ Table 2 displays the results.
 
 # 4. Residuals diagnostics
 ## a. During 2019-20 season
+```{r residuals 2019, echo=FALSE, include = FALSE}
+#restrict the number of variables
+df_restr_19 <- df %>% select(Date, HomeTeam, AwayTeam, FTR, FTHG, FTAG)
+
+#pivot longer to create two rows for each match
+df_restr_19 <- df_restr_19 %>% pivot_longer(cols = c(HomeTeam, AwayTeam), names_to = 'Team')
+
+#variable win
+df_restr_19 <- df_restr_19 %>% mutate(
+  win = as.factor(case_when(
+    Team == 'HomeTeam' & FTR == 'H' ~ 1, 
+    Team == 'AwayTeam' & FTR == 'H' ~ 0,
+    Team == 'HomeTeam' & FTR == 'A' ~ 0,
+    Team == 'AwayTeam' & FTR == 'A' ~ 1,
+    Team == 'HomeTeam' & FTR == 'D' ~ 2,
+    Team == 'AwayTeam' & FTR == 'D' ~ 2,
+    
+  )
+))
+
+#score variable 
+df_restr_19 <- df_restr_19 %>% mutate(
+  goals = case_when(
+    Team == 'HomeTeam' ~ FTHG,
+    Team == 'AwayTeam' ~ FTAG
+  )
+)
+
+#variable to assess if covid or not
+df_restr_19 <- df_restr_19 %>% mutate(
+  covid = as.factor(case_when(
+      Date >= "2020-03-12" & Date <= "2021-06-01"~ 1,
+      TRUE ~ 0
+  ))
+)
+
+df_restr_19 <- df_restr_19 %>% mutate(
+  covid_before_after = as.factor(case_when(
+      Date >= "2020-03-12" & Date <= "2021-06-01"~ "In-covid",
+      Date <= "2020-03-12" ~"Pre-covid",
+      TRUE ~ "Post-covid"
+  ))
+)
+
+#rename variables
+df_restr_19 <- df_restr_19 %>% mutate(
+  home_goals = FTHG,
+  away_goals = FTAG,
+  team_name = value,
+  team_status = Team,
+  covid_y_n = covid,
+  date = Date
+)
+
+#final data set
+df_restr_19 <- df_restr_19 %>% select(date, home_goals, away_goals, team_name, team_status, covid_y_n, covid_before_after, win, goals )
+
+df_restr_19 <- df_restr_19%>%select(team_name, team_status, win) %>% filter(win == "1")%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
+
+model_19 <- glm(df_restr_19$number ~ df_restr_19$team_status, family=poisson(link="log"))
+summary(model_19)
+
+par(mfrow=c(2,2))
+plot(model_19)
+```
 
 ## b. All seasons together
-
+```{r residuals all, echo=FALSE, include = FALSE}
+par(mfrow=c(2,2))
+model_wins <- glm(df_wins_all$number ~ df_wins_all$team_status, family=poisson(link="log"))
+plot(model_wins)
+```
 
 # 5. Stability 
 ## a. Promoted and relegated teams
