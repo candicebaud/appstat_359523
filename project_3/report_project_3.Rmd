@@ -1,0 +1,262 @@
+---
+title: "Project 3"
+author: "Sciper 359523"
+date: "2023-03-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE)
+```
+
+```{r working directory and data, echo=FALSE, include=FALSE}
+lapply(c("dplyr","chron","ggplot2","tidyr","questionr","survival","forcats","tidyselect",
+         "data.table","table1","lubridate", "ggpubr","viridis","finalfit","survminer",
+         "ggpubr", "ggthemes", "gridExtra", "rstatix","stringr",
+         "wesanderson","kableExtra", "naniar","boot","scales","ggsci", "stringr",
+         "Hmisc","DescTools","swimplot", 'stats', 'EnvStats', 'finalfit'), 
+       library, character.only=TRUE)
+
+Sys.setlocale("LC_TIME", "English")
+
+#data bases import
+df18 <- read.csv(file = '2018-19.csv')
+df19 <- read.csv(file = '2019-20.csv')
+df20 <- read.csv(file = '2020-21.csv')
+df21 <- read.csv(file = '2021-22.csv')
+
+
+set.seed(435) #set the seed for reproducible results
+```
+
+# 1. Introduction
+Home advantage is a well-known phenomenon in football where a team playing at their home stadium has an advantage over the away team. This advantage can be attributed to factors such as familiarity with the playing surface and surroundings, support of home fans, and a psychological boost. In addition, referees may also be influenced by the home crowd, which is known as refereeing bias. A study by Garicano and Palacios-Huerta (2001)[1] found that home teams in the Spanish La Liga received significantly fewer yellow and red cards than away teams, suggesting that referees may be influenced by the home crowd.
+
+The magnitude of the home advantage effect has been highlighted by previous studies. Nevill, Newell, and Gale (1996) [2] analyzed over 10,000 matches from English football leagues and found that home teams won approximately 60% of matches, while away teams won only 20% of matches. A more recent study by Pollard [3] analyzed data from the UEFA Champions League and concluded that home teams won 62.4% of matches, while away teams won only 20.3% of matches.
+
+In this project, we analyze the English Premier League during the seasons 2018-2019 to 2021-2022. Due to Covid-19, teams were forced to play in empty stadiums between March 2020 and the beginning of the 2021-22 season. This presents an opportunity to investigate the strength of the home advantage effect during closed-door matches, where neither the players nor the referees are influenced by the crowd. Thus, this report will present the most significant results concerning the effect of Covid-19 on home advantage.
+
+In Section 2, we introduce the dataset, and in Section 3, we describe our model building procedure and present the final model. Section 4 analyzes our model via diagnostics, and we will analyze its stability in Section 5. In Section 6, we interpret and analyze the results, and finally, we conclude the work done and discuss potential improvements in Section 7.
+
+# 2. Data characteristics
+The data on which the analyzes are made is composed of four data sets that were concatenated together. They all contain the match results for the four English premier league seasons :
++2018-2019
++2019-2020
++2020-2021
++2021-2022
+
+The available variables contain match results (winning team, home and away team, goals from each team at half time and full time), match statistics (number of shots, number of shots on target and yellow and red cards for each team), betting odds, number of BetBrain bookmakers used to calculate match odds averages and maximums, and total goals betting odds. 
+
+The variable that we will mostly use are the ones regarding match results. Indeed, we will make model regarding different definitions of the home advantage :
++the fact that a team is more or less likely to win if they play at home
++the fact that a team will goal more or less if they play at home 
+
+```{r tidy the data and rename, echo=FALSE}
+#merge the data sets together
+df <- bind_rows(df18, df19, df20, df21)
+
+#date
+df <- df%>%mutate(
+  Date = as.Date(Date , format = "%d/%m/%Y")
+)
+
+#restrict the number of variables
+df_restr <- df %>% select(Date, HomeTeam, AwayTeam, FTR, FTHG, FTAG)
+
+#pivot longer to create two rows for each match
+df_restr <- df_restr %>% pivot_longer(cols = c(HomeTeam, AwayTeam), names_to = 'Team')
+
+#variable win
+df_restr <- df_restr%>% mutate(
+  win = as.factor(case_when(
+    Team == 'HomeTeam' & FTR == 'H' ~ 1, 
+    Team == 'AwayTeam' & FTR == 'H' ~ 0,
+    Team == 'HomeTeam' & FTR == 'A' ~ 0,
+    Team == 'AwayTeam' & FTR == 'A' ~ 1,
+    Team == 'HomeTeam' & FTR == 'D' ~ 2,
+    Team == 'AwayTeam' & FTR == 'D' ~ 2,
+    
+  )
+))
+
+#score variable 
+df_restr <- df_restr %>% mutate(
+  goals = case_when(
+    Team == 'HomeTeam' ~ FTHG,
+    Team == 'AwayTeam' ~ FTAG
+  )
+)
+
+#variable to assess if covid or not
+df_restr <- df_restr %>% mutate(
+  covid = as.factor(case_when(
+      Date >= "2020-03-12" & Date <= "2021-06-01"~ 1,
+      TRUE ~ 0
+  ))
+)
+
+df_restr <- df_restr %>% mutate(
+  covid_before_after = as.factor(case_when(
+      Date >= "2020-03-12" & Date <= "2021-06-01"~ "In-covid",
+      Date <= "2020-03-12" ~"Pre-covid",
+      TRUE ~ "Post-covid"
+  ))
+)
+
+#rename variables
+df_restr <- df_restr %>% mutate(
+  home_goals = FTHG,
+  away_goals = FTAG,
+  team_name = value,
+  team_status = Team,
+  covid_y_n = covid,
+  date = Date
+)
+
+#restricted data set with only the variables of interest
+df_restr <- df_restr %>% 
+  select(date, home_goals, away_goals, team_name, team_status, covid_y_n, covid_before_after, win, goals )
+
+#data frame with only the values before covid
+df_before <- df_restr %>%
+  filter(covid_before_after == 'Pre-covid')
+
+#data frame with only the values during covid
+df_during <- df_restr %>% 
+  filter(covid_before_after == 'In-covid')
+
+#data frame with only the values after covid
+df_after <- df_restr %>% 
+  filter(covid_before_after == 'Post-covid')
+
+#data frames that count the number of victories before covid and all periods of time 
+df_wins_before <- df_restr %>% 
+  filter(covid_before_after =='Pre-covid')%>%  
+  filter(win == "1")%>% 
+  select(team_name, team_status, win)%>% 
+  group_by(team_name, team_status)%>%
+  summarise(number=n())%>% 
+  mutate(numb_win = number)
+
+df_wins_all <- df_restr %>% 
+  select(team_name, team_status, win)%>% 
+  filter(win == "1") %>% 
+  group_by(team_name, team_status)%>%
+  summarise(number=n())%>% 
+  mutate(numb_win = number)
+
+df_wins_during <- df_restr %>%
+  filter(covid_before_after =='In-covid')%>%  
+  filter(win == "1")%>% 
+  select(team_name, team_status, win)%>% 
+  group_by(team_name, team_status)%>%
+  summarise(number=n())%>% 
+  mutate(numb_win = number)
+
+df_wins_after <- df_restr %>% 
+  filter(covid_before_after =='Post-covid')%>%  
+  filter(win == "1")%>% 
+  select(team_name, team_status, win)%>% 
+  group_by(team_name, team_status)%>%
+  summarise(number=n())%>% 
+  mutate(numb_win = number)
+
+
+```
+
+*Figure1* shows the difference of goals between the home goals and the away goals with respect to the date. The red line shows the average of the series and the blue zone represents the covid-19 period of time for which matches were played closed-doors.
+
+```{r, fig.align="center", fig.cap="Figure 1 : Difference between home goals and away goals"}
+test_2<- df_restr %>% 
+  select(date, home_goals, away_goals) %>% 
+  group_by(date) %>% 
+  summarise(avg_home = mean(home_goals), avg_away = mean(away_goals)) %>%
+  mutate(avg_diff = avg_home - avg_away) 
+
+test_2 %>% ggplot(aes(x=date, y=avg_diff)) + 
+  geom_line() + 
+  geom_hline(yintercept= mean(test_2$avg_diff), col = 'red')+ 
+  geom_rect(aes(xmin = as.Date("2020-03-12", format = "%Y-%m-%d"), xmax = as.Date("2021-06-01", format = "%Y-%m-%d"), ymin = -Inf, ymax = Inf), fill = "blue", alpha = 0.003) + 
+  labs(x = 'Date', y = 'Average difference of goals', title = 'Difference between home goals and away goals')
+
+
+```
+
+The figure shows a slight advantage of playing home since the average is positive. It doesn't look like the covid-19 has a great impact on the average difference of number of goals, but there are less extremes scores. 
+
+In the next section, we model the data to better understand what is happening and to what extent the home advantage persisted during covid-19. 
+
+# 3. Model building
+Home advantage can be seen through different indicators. As a first approach, we consider that a team has an advantage if they score more goals when they are at home. We build a linear model for each covid state (before, during, after) and evaluate in each state the effect of playing home.
+
+```{r linear model, echo=FALSE, include = FALSE}
+#model before covid
+linear_model_before <- lm(goals ~ team_status, data = df_before)
+summary(linear_model_before)
+
+#during covid 
+linear_model_during <- lm(goals ~ team_status , data = df_during)
+summary(linear_model_during)
+
+#after covid 
+linear_model_after <- lm(goals ~ team_status , data = df_after)
+summary(linear_model_after)
+
+#compare before and after covid
+linear_model_b_a <- lm(goals ~ team_status + covid_before_after, data = df_restr)
+summary(linear_model_b_a)
+
+```
+
+The estimated coefficient associated with the home team is given in the following table :
+
+*Table1 : Estimated coefficients with the linear model*
+
+
+|              | Estimate | Std.Error | t value | Pr(>\|t\|) |
+|--------------|----------|-----------|---------|------------|
+| Before covid | 0.27     | 0.069     | 3.93    | 9.04e-05   |
+| During covid | 0.01     | 0.09      | 0.11    | 0.91       |
+| After covid  | 0.20     | 0.09      | 2.22    | 0.03       |
+
+
+Another way of modelling the home advantage is to use a Poisson model (or log linear model). We now consider that a team has an advantage if they win more when they play at home. Again we consider the three phases, before, during and after covid-19 and estimate the coefficient associated with playing home.
+
+```{r poisson model, echo=FALSE, include = FALSE}
+model_wins_before <- glm(df_wins_before$number ~ df_wins_before$team_status, family=poisson(link="log"))
+summary(model_wins_before)
+
+model_wins_during <- glm(df_wins_during$number ~ df_wins_during$team_status, family=poisson(link="log"))
+summary(model_wins_during)
+
+model_wins_after <- glm(df_wins_after$number ~ df_wins_after$team_status, family=poisson(link="log"))
+summary(model_wins_after)
+```
+
+Table 2 displays the results.
+
+*Table2 : Estimated coefficients with the Poisson regression*
+
+
+|              | Estimate | Std.Error | t value | Pr(>\|t\|) |
+|--------------|----------|-----------|---------|------------|
+| Before covid | 0.32     | 0.09      | 3.57    | 0.0003     |
+| During covid | -0.06    | 0.12      | -0.52   | 0.6        |
+| After covid  | 0.23     | 0.12      | 1.99    | 0.047      |
+
+
+# 4. Residuals diagnostics
+
+# 5. Sensitivity/stability 
+
+# 6. Interpretation
+
+# 7. Discussion
+
+
+# 8. References
+[1] Garicano, L. and Palacios-Huerta, I. (2001). "An empirical examination of multilateral bargaining." American Economic Review, 91(4): 828-848.
+
+[2] Nevill, A. M., Newell, S. M., & Gale, S. (1996). Factors associated with home advantage in English and Scottish soccer matches. Journal of Sports Sciences, 14(2), 181-186.
+
+[3] Pollard, R., & Pollard, G. (2005). Home advantage in soccer: Variations in its magnitude and a literature review of the inter-related factors associated with its existence. Journal of Sport Behavior, 28(3), 169-189.

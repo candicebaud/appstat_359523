@@ -1,0 +1,195 @@
+---
+title: "rough work"
+author: "Sciper 359523"
+date: "2023-03-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r working directory and data, echo=FALSE, include=FALSE}
+lapply(c("dplyr","chron","ggplot2","tidyr","questionr","survival","forcats","tidyselect",
+         "data.table","table1","lubridate", "ggpubr","viridis","finalfit","survminer",
+         "ggpubr", "ggthemes", "gridExtra", "rstatix","stringr",
+         "wesanderson","kableExtra", "naniar","boot","scales","ggsci", "stringr",
+         "Hmisc","DescTools","swimplot", 'stats', 'EnvStats', 'finalfit'), 
+       library, character.only=TRUE)
+
+Sys.setlocale("LC_TIME", "English")
+setwd("C:/Users/candi/Desktop/ETUDES/EPFL1A/semestre 2/applied statistics/applied_stat_359523/project_3")
+
+#data bases import
+df18 <- read.csv(file = '2018-19.csv')
+df19 <- read.csv(file = '2019-20.csv')
+df20 <- read.csv(file = '2020-21.csv')
+df21 <- read.csv(file = '2021-22.csv')
+
+
+set.seed(435) #set the seed for reproducible results
+```
+
+## Tidy up the data
+```{r tidy the data and rename, echo=FALSE}
+#variables names
+#ls(df18)
+#ls(df19)
+#ls(df20)
+#ls(df21)
+
+#data sets df19, df20 and df21 have the same variables but not df18 (only 62 variables) which explains why there are lots of NA
+df <- bind_rows(df18, df19, df20, df21)
+
+#sum(is.na(df)/((106-62)*380*2+ (106-62)*260))
+
+
+#date
+df <- df%>%mutate(
+  Date = as.Date(Date , format = "%d/%m/%Y")
+)
+
+#restrict the number of variables
+df_restr <- df %>% select(Date, HomeTeam, AwayTeam, FTR, FTHG, FTAG)
+
+#pivot longer to create two rows for each match
+df_restr <- df_restr %>% pivot_longer(cols = c(HomeTeam, AwayTeam), names_to = 'Team')
+
+#variable win
+df_restr <- df_restr%>% mutate(
+  win = as.factor(case_when(
+    Team == 'HomeTeam' & FTR == 'H' ~ 1, 
+    Team == 'AwayTeam' & FTR == 'H' ~ 0,
+    Team == 'HomeTeam' & FTR == 'A' ~ 0,
+    Team == 'AwayTeam' & FTR == 'A' ~ 1,
+    Team == 'HomeTeam' & FTR == 'D' ~ 2,
+    Team == 'AwayTeam' & FTR == 'D' ~ 2,
+    
+  )
+))
+
+#score variable 
+df_restr <- df_restr %>% mutate(
+  goals = case_when(
+    Team == 'HomeTeam' ~ FTHG,
+    Team == 'AwayTeam' ~ FTAG
+  )
+)
+
+#variable to assess if covid or not
+df_restr <- df_restr %>% mutate(
+  covid = as.factor(case_when(
+      Date >= "2020-03-12" & Date <= "2021-06-01"~ 1,
+      TRUE ~ 0
+  ))
+)
+
+df_restr <- df_restr %>% mutate(
+  covid_before_after = as.factor(case_when(
+      Date >= "2020-03-12" & Date <= "2021-06-01"~ "In_covid",
+      Date <= "2020-03-12" ~"Pre-covid",
+      TRUE ~ "Post-covid"
+  ))
+)
+
+#rename variables
+df_restr <- df_restr %>% mutate(
+  home_goals = FTHG,
+  away_goals = FTAG,
+  team_name = value,
+  team_status = Team,
+  covid_y_n = covid,
+  date = Date
+)
+
+#final data set
+df_restr <- df_restr %>% select(date, home_goals, away_goals, team_name, team_status, covid_y_n, covid_before_after, win, goals )
+```
+
+
+## Model  
+```{r model, echo=FALSE}
+#if we consider that the home advantage can be computed with the number of goals
+#before covid, we can do a linear model
+df_before <- df_restr %>% filter(covid_before_after == 'Pre-covid')
+
+#model before covid
+linear_model_before <- lm(goals ~ team_status, data = df_before )
+summary(linear_model_before)
+
+#during covid 
+df_during <- df_restr %>% filter(covid_before_after == 'In_covid')
+linear_model_during <- lm(goals ~ team_status , data = df_during)
+summary(linear_model_during)
+
+#after covid 
+df_after <- df_restr %>% filter(covid_before_after == 'Post-covid')
+linear_model_after <- lm(goals ~ team_status , data = df_after)
+summary(linear_model_after)
+
+#compare before and after covid
+linear_model_b_a <- lm(goals ~ team_status + covid_before_after, data = df_restr)
+summary(linear_model_b_a)
+
+
+#if we consider that the advantage is the win, we will make a variable that counts the number of wins for each team and then do the glm according to if they were at home or away
+df_wins_all <- as.data.frame(df_restr %>% select(team_name, team_status, win)%>% filter(win == "1") %>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number))
+
+df_wins_before <- as.data.frame(df_restr %>% filter(covid_before_after =='Pre-covid')%>%  filter(win == "1")%>% select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number))
+
+df_wins_during <- df_restr %>% filter(covid_before_after =='In_covid')%>%  filter(win == "1")%>% select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
+
+df_wins_after <- df_restr %>% filter(covid_before_after =='Post-covid')%>%  filter(win == "1")%>% select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
+
+
+model_wins <- glm(df_wins_all$number ~ df_wins_all$team_status, family=poisson(link="log"))
+summary(model_wins)
+
+model_wins_before <- glm(df_wins_before$number ~ df_wins_before$team_status, family=poisson(link="log"))
+summary(model_wins_before)
+
+model_wins_during <- glm(df_wins_during$number ~ df_wins_during$team_status, family=poisson(link="log"))
+summary(model_wins_during)
+
+model_wins_after <- glm(df_wins_after$number ~ df_wins_after$team_status, family=poisson(link="log"))
+summary(model_wins_after)
+
+df_with_covid <- df_restr %>% select(covid_before_after, team_name, team_status, win)%>% filter(win == "1") %>% group_by(covid_before_after, team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
+
+model_covid_var <- glm(df_with_covid$number ~ df_with_covid$team_status + df_with_covid$covid_before_after, family=poisson(link="log"))
+summary(model_covid_var)
+```
+
+## decriptive stat 
+```{r stat des, echo=FALSE}
+hist(df_restr$home_goals, freq = F)
+plot(df_restr$date,df_restr$home_goals)
+
+test <- df_restr %>% select(date, home_goals, away_goals) %>% mutate(
+  year = year(date),
+  month = month(date)) %>% group_by(year, month) %>% summarise(avg_home = mean(home_goals), avg_away = mean(away_goals))
+
+test_2<- df_restr %>% select(date, home_goals, away_goals) %>% group_by(date) %>% summarise(avg_home = mean(home_goals), avg_away = mean(away_goals)) %>% mutate(avg_diff = avg_home - avg_away) 
+
+test_2%>% ggplot(aes(x=date, y=avg_diff)) +geom_line() + geom_hline(yintercept= mean(test_2$avg_diff), col = 'red')+ geom_rect(aes(xmin = as.Date("2020-03-12", format = "%Y-%m-%d"), xmax = as.Date("2021-06-01", format = "%Y-%m-%d"), ymin = -Inf, ymax = Inf), fill = "blue", alpha = 0.003) + labs(x = 'Date', y = 'Average difference of goals', title = 'Difference between home goals and away goals')
+
+
+```
+
+## Residual and statbility
+```{r residuals, echo=FALSE, include = FALSE}
+par(mfrow=c(2,2))
+plot(model_wins_before)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
