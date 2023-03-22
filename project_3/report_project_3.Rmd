@@ -39,11 +39,7 @@ In this project, we analyze the English Premier League during the seasons 2018-2
 In Section 2, we introduce the dataset, and in Section 3, we describe our model building procedure and present the final model. Section 4 analyzes our model via diagnostics, and we will analyze its stability in Section 5. In Section 6, we interpret and analyze the results, and finally, we conclude the work done and discuss potential improvements in Section 7.
 
 # 2. Data characteristics
-The data on which the analyzes are made is composed of four data sets that were concatenated together. They all contain the match results for four English premier league seasons (2018-2019, 2019-2020, 2020-2021, 2021-2022).
-
-The available variables contain match results (winning team, home and away team, goals from each team at half time and full time), match statistics (number of shots, number of shots on target and yellow and red cards for each team), betting odds, number of BetBrain bookmakers used to calculate match odds averages and maximums, and total goals betting odds. 
-
-The variables that we mostly use are the ones regarding match results. We build two models regarding two different definitions of the home advantage. First, we consider it as the fact that a team will goal more or less if they play at home. Secondly, we consider it as the fact that a team is more or less likely to win if they play at home. 
+The data used for analysis consists of match results and statistics, betting odds, and bookmaker information from the English Premier League. The data set is a concatenation of four separate data sets, each containing match results for four seasons : 2018-2019, 2019-2020, 2020-2021, and 2021-2022. The match results variables include the winning team, home and away teams, goals scored by each team at half-time and full-time, and the number of shots and shots on target, as well as yellow and red cards for each team. In addition, the data set includes information on the number of BetBrain bookmakers used to calculate match odds averages and maximums, and total goals betting odds. As a first definition of home advantage, we primarily examined the impact of playing at home on a team's goal scoring ability. Secondly, we used the match results (win or loose) to build a poisson model.
 
 ```{r tidy the data and rename, echo=FALSE}
 #merge the data sets together
@@ -158,32 +154,30 @@ df_wins_after <- df_restr %>%
 
 ```
 
-*Figure1* shows the difference of goals between the home goals and the away goals with respect to the date. The red line shows the average of the series and the blue zone represents the covid-19 period of time for which matches were played closed-doors.
+*Figure1* illustrates the difference in goals between the home team and the away team over time. The red line represents the average of the series, while the blue zone highlights the period during the COVID-19 pandemic when matches were played without spectators in attendance. This period is commonly referred to as closed-doors matches. The graph provides insights into how the home advantage phenomenon might be affected by playing in empty stadiums compared to games where fans are present.
 
 ```{r, fig.align="center", fig.cap="Figure 1 : Difference between home goals and away goals"}
-test_2<- df_restr %>% 
+graph<- df_restr %>% 
   select(date, home_goals, away_goals) %>% 
   group_by(date) %>% 
   summarise(avg_home = mean(home_goals), avg_away = mean(away_goals)) %>%
   mutate(avg_diff = avg_home - avg_away) 
 
-test_2 %>% ggplot(aes(x=date, y=avg_diff)) + 
+graph %>% ggplot(aes(x=date, y=avg_diff)) + 
   geom_line() + 
-  geom_hline(yintercept= mean(test_2$avg_diff), col = 'red', show.legend = T)+ 
+  geom_hline(yintercept= mean(graph$avg_diff), col = 'red', show.legend = T)+ 
   geom_rect(aes(xmin = as.Date("2020-03-12", format = "%Y-%m-%d"), xmax = as.Date("2021-06-01", format = "%Y-%m-%d"), ymin = -Inf, ymax = Inf), fill = "blue", alpha = 0.003) +
   labs(x = 'Date', y = 'Average difference of goals', title = 'Difference between home goals and away goals')
 
 
 ```
 
-The figure shows a slight advantage of playing home since the average is positive. It doesn't look like the covid-19 has a great impact on the average difference of number of goals, but there are less extremes scores. 
-
-In the next section, we model the data to better understand what is happening and to what extent the home advantage persisted during covid-19. 
+The figure indicates that there is a slight advantage to playing at home since the average difference in the number of goals scored is positive. It appears that the COVID-19 pandemic had little impact on the average difference in the number of goals scored, although there are fewer extreme scores during the closed-doors matches. In the next section, we will model the data to gain a deeper understanding of the extent to which the home advantage persisted during the COVID-19 pandemic. Our analysis aims to provide more robust evidence on the impact of playing without fans and whether it affected the home advantage in the English Premier League.
 
 # 3. Model building
 
 ## a. Linear model
-Home advantage can be seen through different indicators. As a first approach, we consider that a team has an advantage if they score more goals when they are at home. We build a linear model for each covid state (before, during, after) and evaluate in each state the effect of playing home.
+Home advantage can manifest in various forms, and we consider one indicator to be a team scoring more goals when playing at home. We constructed separate linear models for each COVID-19 period (before, during, and after) to evaluate the effect of playing at home on a team's goal scoring ability. Specifically, we assessed whether there was a statistically significant difference in the number of goals scored by a team when playing at home compared to away during each period. 
 
 ```{r linear model, echo=FALSE, include = FALSE}
 #model before covid
@@ -221,7 +215,7 @@ $N_{goals} = \beta*Home + \epsilon$
 where $\beta$ is the estimate, $\epsilon$ is the residual, $Home$ denotes the fact that the teams plays home and $N_{goals}$ is the number of goals.
 
 ## b. Poisson model
-Another way of modelling the home advantage is to use a Poisson model (or log linear model). We now consider that a team has an advantage if they win more when they play at home. Again we consider the three phases, before, during and after covid-19 and estimate the coefficient associated with playing home.
+Another way to model the home advantage is through the use of a Poisson model, also known as a log-linear model. Here, we explore whether home teams have an advantage in terms of winning matches. To this end, we consider the same three COVID-19 periods (before, during, and after) and estimate the coefficient associated with playing at home on our count data. This approach provides an alternative perspective on the home advantage phenomenon, which can help us to gain a more comprehensive understanding of the impact of playing at home in the English Premier League.
 
 ```{r poisson model, echo=FALSE, include = FALSE}
 model_wins_before <- glm(df_wins_before$number ~ df_wins_before$team_status, family=poisson(link="log"))
@@ -253,7 +247,7 @@ where $\beta$ is the estimate, $\epsilon$ is the residual, $Home$ denotes the fa
 
 # 4. Residuals diagnostics
 ## a. During 2019-20 season
-We can fit the previous model only for the 2019-2020 season which is the most impacted by covid-19. The diagnostics we obtain are presented in *Figure 2*. The residual plot shows two distinct bands which correspond to the two values of the variable *team status* : Home team corresponding to playing home, and Away team corresponding to playing away. The normal QQ-plot shows that the residuals are skewed with some outliers. One could refit the model without those influential outliers to see to what extent the model is changed. The scale location and constant leverage also enable to identify those outliers.
+We fit the previously mentioned model only for the 2019-2020 season, which was the most affected by the COVID-19 pandemic. The model diagnostics are presented in *Figure 2*. The residual plot displays two distinct bands, which correspond to the two values of the variable "team status" : home team (playing at home) and away team (playing away). The normal QQ-plot indicates that the residuals are skewed with some outliers. It may be worthwhile to refit the model without these influential outliers to determine the extent to which the model is impacted. The scale-location and constant leverage plots also identify these outliers.
 
 
 ```{r, fig.align="center", fig.cap="Figure 2 : Residuals diagnostics for the model with only the 2019-20 season"}
@@ -326,7 +320,7 @@ plot(model_19)
 
 
 ## b. All seasons together
-By fitting the model for all the seasons together (which captures an overall positive effect of playing home even though the effect is not present during covid), we obtain the diagnostics displayed in *Figure 3*. They globally have the same shape as for the model fitted only on the 2019-20 season. Thus, we again identify some influential outliers, mostly on the top right of the QQplot.
+By fitting the model for all the seasons together (which captures an overall positive effect of playing at home, even though the effect is not present during the COVID-19 pandemic), we obtain the diagnostics displayed in *Figure 3*. The diagnostic plots have a similar shape to those for the model fitted only for the 2019-2020 season. Therefore, we once again identify some influential outliers, mostly located on the top right of the QQ-plot. These outliers may have a significant impact on the model, and it may be necessary to investigate them further to determine if they should be removed or if they provide important information.
 
 ```{r, fig.align="center", fig.cap="Figure 3 : Residuals diagnostics for the model considering all seasons"}
 par(mfrow=c(2,2))
@@ -336,15 +330,16 @@ plot(model_wins)
 
 # 5. Stability 
 ## a. Promoted and relegated teams
-The model we built so far didn't take in account the fact that some teams are relegated and some other promoted from season to season. We discard those teams and refit the Poisson model of part 5.b. The estimated coefficients are as follows 
+The models we have built so far have not taken into account the fact that some teams are relegated and others are promoted from season to season, which could potentially impact the estimates of the coefficients. To address this, we discard those teams and refit the Poisson model described in Part 5.b. This new model takes into account only the teams that have participated in all four seasons, and the estimated coefficients are based on these teams only. The estimated coefficients for the remaining teams are presented in the following table:
+
 ```{r promoted, echo=FALSE, include = FALSE}
 #relegated/promoted effect
 A = setdiff(df18$HomeTeam,df19$HomeTeam) #relegated (those in for 18 but not in 19)
 B = setdiff(df19$HomeTeam,df18$HomeTeam) #promoted (those in 19 but not in 18)
-C = setdiff(df19$HomeTeam, df20$HomeTeam) #relegated
-D = setdiff(df20$HomeTeam, df19$HomeTeam) #promoted
-E = setdiff(df20$HomeTeam, df21$HomeTeam ) #relegated
-f = setdiff(df21$HomeTeam, df20$HomeTeam ) #promoted
+C = setdiff(df19$HomeTeam,df20$HomeTeam) #relegated
+D = setdiff(df20$HomeTeam,df19$HomeTeam) #promoted
+E = setdiff(df20$HomeTeam,df21$HomeTeam ) #relegated
+f = setdiff(df21$HomeTeam,df20$HomeTeam ) #promoted
 
 names_del <- unique(c(A, B, C, D, E, f)) #we will not take in account the ones that were relegated and promoted
 
@@ -376,16 +371,34 @@ summary(model_wins_after_rel)
 
 
 ## b. Draw effect
-Another limit of our model in 5.b was that we only counted the number of wins, but we could also include the draws as a victory for both teams. By doing this, the coefficients estimation gives
+Another limitation of the model described in Part 5.b is that we only counted the number of wins, but we could also include the draws as a "victory" for both teams. By doing this, we can account for the so-called "draw effect", which is the tendency of home teams to draw more often than away teams. This effect could potentially impact the estimates of the coefficients. To address this issue, we refit the Poisson model by counting draws as 0.5 wins for both teams. The estimated coefficients for this modified model are presented in the table below :
 
 
 ```{r draw effect, echo=FALSE, include = FALSE}
-#if we consider that draw is almost like winning 
-df_wins_before_bis <- as.data.frame(df_restr %>% filter(covid_before_after =='Pre-covid')%>%  filter(win != "0")%>% select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number))
+#if we consider that draw is like winning 
+df_wins_before_bis <- df_restr %>%
+  filter(covid_before_after =='Pre-covid')%>% 
+  filter(win != "0")%>% 
+  select(team_name, team_status, win)%>% 
+  group_by(team_name, team_status)%>%
+  summarise(number=n())%>% 
+  mutate(numb_win = number)
 
-df_wins_during_bis <- df_restr %>% filter(covid_before_after =='In-covid')%>%  filter(win != "0")%>% select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
+df_wins_during_bis <- df_restr %>% 
+  filter(covid_before_after =='In-covid')%>%  
+  filter(win != "0")%>%
+  select(team_name, team_status, win)%>% 
+  group_by(team_name, team_status)%>%
+  summarise(number=n())%>%
+  mutate(numb_win = number)
 
-df_wins_after_bis <- df_restr %>% filter(covid_before_after =='Post-covid')%>%  filter(win != "0")%>% select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
+df_wins_after_bis <- df_restr %>% 
+  filter(covid_before_after =='Post-covid')%>%  
+  filter(win != "0")%>% 
+  select(team_name, team_status, win)%>%
+  group_by(team_name, team_status)%>%
+  summarise(number=n())%>%
+  mutate(numb_win = number)
 
 
 model_wins_before_bis <- glm(df_wins_before_bis$number ~ df_wins_before_bis$team_status, family=poisson(link="log"))
@@ -396,6 +409,67 @@ summary(model_wins_during_bis)
 
 model_wins_after_bis <- glm(df_wins_after_bis$number ~ df_wins_after_bis$team_status, family=poisson(link="log"))
 summary(model_wins_after_bis)
+
+
+
+
+#if we consider draw as half victory
+df_wins_before_draw <- df_restr %>% 
+  filter(covid_before_after =='Pre-covid')%>%
+  select(team_name, team_status, win)%>%
+  mutate(
+    win_numeric = case_when(
+      win == 0 ~ 0,
+      win == 1 ~ 1,
+      win == 2 ~ 0.5
+    )
+  ) %>%
+  group_by(team_name, team_status, win_numeric)%>%
+  summarise(number = n(),s = sum(win_numeric)) %>% 
+  group_by(team_name, team_status)%>%
+  summarise(score = sum(s))
+
+df_wins_during_draw <- df_restr %>% 
+  filter(covid_before_after =='In-covid')%>%
+  select(team_name, team_status, win)%>%
+  mutate(
+    win_numeric = case_when(
+      win == 0 ~ 0,
+      win == 1 ~ 1,
+      win == 2 ~ 0.5
+    )
+  ) %>%
+  group_by(team_name, team_status, win_numeric)%>%
+  summarise(number = n(),s = sum(win_numeric)) %>% 
+  group_by(team_name, team_status)%>%
+  summarise(score = sum(s))
+
+df_wins_after_draw <- df_restr %>% 
+  filter(covid_before_after =='Post-covid')%>%
+  select(team_name, team_status, win)%>%
+  mutate(
+    win_numeric = case_when(
+      win == 0 ~ 0,
+      win == 1 ~ 1,
+      win == 2 ~ 0.5
+    )
+  ) %>%
+  group_by(team_name, team_status, win_numeric)%>%
+  summarise(number = n(),s = sum(win_numeric)) %>% 
+  group_by(team_name, team_status)%>%
+  summarise(score = sum(s))
+
+
+model_wins_before_draw <- glm(df_wins_before_draw$score ~ df_wins_before_draw$team_status, family=poisson(link="log"))
+summary(model_wins_before_draw)
+
+model_wins_during_draw <- glm(df_wins_during_draw$score ~ df_wins_during_draw$team_status, family=poisson(link="log"))
+summary(model_wins_during_draw)
+
+model_wins_after_draw <- glm(df_wins_after_draw$score ~ df_wins_after_draw$team_status, family=poisson(link="log"))
+summary(model_wins_after_draw)
+
+#remark : if we take in account that draw is equal to victory we obtain quite similar results but the pvalues are a bit higher
 ```
 
 
@@ -403,26 +477,25 @@ summary(model_wins_after_bis)
 
 |              | Estimate | Std.Error | t value | Pr(>\|t\|) |
 |--------------|----------|-----------|---------|------------|
-| Before covid | 0.21     | 0.07      | 2.9     | 0.004      |
-| During covid | -0.04    | 0.09      | -0.42   | 0.68       |
-| After covid  | 0.15     | 0.09      | 1.57    | 0.12       |
+| Before covid | 0.25     | 0.08      | 3.19    | 0.001      |
+| During covid | -0.05    | 0.10      | -0.46   | 0.64       |
+| After covid  | 0.18     | 0.10      | 1.74    | 0.08       |
 
 
 
 # 6. Interpretation
-The first model in section 3.a is a first approach to quantify the home advantage taking in account the difference of number of goals. It appears very clearly that there was a home advantage before covid-19 occurred since the coefficient associated to playing home is positive and statistically significant at every usual level. It is also practically significant since its value is 0.27 (95CI = [0.14, 0.4]), which means that a team marks 0.27 more goals when they play at home. During covid-19, the coefficient associated to playing home is not statistically significant and 0 belongs to the confidence interval, which means that there is no effect of playing home rather than playing away. After the closed door period, the effect of playing home becomes again significant statistically (at the 5% level) and practically. 
+In section 3.a, we present two models to quantify the home advantage. The first model examines the difference in the number of goals between playing at home and playing away. Before the COVID-19 pandemic, we observe a significant positive coefficient associated with playing at home, indicating a clear home advantage. The coefficient is practically significant, with a value of 0.27 (95CI = [0.14, 0.4]), which means that teams score 0.27 more goals when playing at home. However, during the pandemic, the coefficient associated with playing at home is not statistically significant since 0 belongs to the confidence interval, indicating no significant effect of playing at home. After the closed-door period, the effect of playing at home becomes statistically and practically significant again.
 
-The second approach to this problem is to consider the number of victories (strictly victory) and model it by a poisson or log-linear regression. The estimated coefficient before covid-19 is again statistically and practically (0.32) significant at the usual levels (5% and 1%). Again, the coefficient associated to the period during covid-19 is not significant so there was no home advantage. Finally, the home advantage reappears after the opening of stadiums the same way we noticed it with the linear regression.
+The second approach considers the number of strictly won games and models it using a Poisson or log-linear regression. The estimated coefficient before the pandemic is also statistically and practically significant (0.32) at the usual levels (5% and 1%). Again, the coefficient associated with the pandemic period is not significant, indicating no home advantage during this time. Finally, the home advantage reappears after the opening of stadiums, as observed in the linear regression model.
 
 
 
 # 7. Discussion
-The models built seem plausible and capture the home advantage decrease during covid-19 due to the closed to public stadiums. The diagnostics and stability analysis showed that the model was strong which gives confidence. 
+The models developed provide a plausible explanation for the decrease in home advantage during the COVID-19 pandemic due to the closure of public stadiums. The diagnostic and stability analyses demonstrate the robustness of the models, which instills confidence in the results.
 
-The interesting conclusion of our work is that after covid-19, the home advantage was rebuilt and did not disappear. It is generally of the same magnitude but a bit less important. To explain that decrease, some plausible hypothesis could be the fact that the teams accustomed themselves to empty stadiums, or that the supporters did not act the same way before and after the covid period.
+The most interesting finding of our work is that after the pandemic, the home advantage returned and did not disappear. The magnitude of the effect was generally similar but slightly smaller. Possible explanations for this decrease include teams becoming accustomed to playing in empty stadiums or changes in fan behavior before and after the pandemic.
 
-We did not explore the yellow and red cards that were studied by Garicano and Palacios-Huertas [1], which could be also very interesting. We also analyzed in the linear regression model the number of goals but we could have instead analyzed the number of targeted goals. 
-
+Although we did not explore the effects of yellow and red cards on home advantage, which was studied by Garicano and Palacios-Huertas [1], this could be an interesting avenue for future research. Additionally, while we analyzed the number of goals in the linear regression model, it would be interesting to investigate the number of targeted goals instead.
 
 # 8. References
 [1] Garicano, L. and Palacios-Huerta, I. (2001). "An empirical examination of multilateral bargaining." American Economic Review, 91(4): 828-848.
