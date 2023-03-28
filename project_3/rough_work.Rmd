@@ -325,6 +325,36 @@ summary(model_wins_after_bis)
 
 
 
+## Linear model in cas e
+## a. Linear model
+Home advantage can manifest in various forms, and we consider one indicator to be a team scoring more goals when playing at home. We construct separate linear models for each COVID-19 period (before, during, and after) to evaluate the effect of playing at home on a team's goal scoring ability. Specifically, we assess whether there is a statistically significant difference in the number of goals scored by a team when playing at home compared to away during each period. 
+
+The data set contains a lot of variables, but we are only interested in this subsection in the number of goals scored. All teams are of the same league so the variable is irrelevant. Match statistics available are mostly a consequence of the home advantage so we don't use them neither in this model because we want to identify the home-advantage 'causal' effect [4] [5]. Those statistics variables may be highly correlated with the number of goals but they do not have an explanatory power regarding the issue of home advantage. 
+
+However, the referee could be an explanatory variable because he/she is chosen prior to the match and thus is not a consequence of the home advantage. But, by running the regression with the referee variable, it appears that it is not significant and that the estimates for the team status (home or away) are the same with or without the referee variable added. For the sake of simplicity and interpretation, we thus only regress the number of goals on the variable that specifies if the team is playing away or at home. We do not include cross effects with other variables. 
+
+
+```{r linear model, echo=FALSE, include = FALSE}
+#the models with the referee are not included in this code but one can run them with the command lm(goals ~ team_status + referee, data = dataframe) with dataframe corresponding to the period of interest
+
+
+#model before covid
+linear_model_before <- lm(goals ~ team_status, data = df_before)
+summary(linear_model_before)
+
+#during covid 
+linear_model_during <- lm(goals ~ team_status , data = df_during)
+summary(linear_model_during)
+
+#after covid 
+linear_model_after <- lm(goals ~ team_status , data = df_after)
+summary(linear_model_after)
+
+#compare before and after covid
+linear_model_b_a <- lm(goals ~ team_status + covid_before_after, data = df_restr)
+summary(linear_model_b_a)
+
+```
 
 
 
