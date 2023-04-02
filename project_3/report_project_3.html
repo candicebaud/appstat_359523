@@ -483,8 +483,8 @@ the following table :</p>
 <th>Std.Error</th>
 <th>t value</th>
 <th>Pr(&gt;|t|)</th>
-<th>95%CI (lower)</th>
-<th>95%CI (upper)</th>
+<th>2.5%</th>
+<th>97.5%</th>
 </tr>
 </thead>
 <tbody>
@@ -494,8 +494,8 @@ the following table :</p>
 <td>0.048</td>
 <td>4.08</td>
 <td>4.43e-05</td>
-<td>- 0.09</td>
-<td>0.48</td>
+<td>0.10</td>
+<td>0.29</td>
 </tr>
 <tr class="even">
 <td>During covid</td>
@@ -503,8 +503,8 @@ the following table :</p>
 <td>0.06</td>
 <td>0.13</td>
 <td>0.90</td>
-<td>-0.2</td>
-<td>0.22</td>
+<td>-0.12</td>
+<td>0.13</td>
 </tr>
 <tr class="odd">
 <td>After covid</td>
@@ -554,8 +554,8 @@ the set of explanatory variables for the reasons explained in 3.a.</p>
 <th>Std.Error</th>
 <th>t value</th>
 <th>Pr(&gt;|t|)</th>
-<th>95%CI (lower)</th>
-<th>95%CI (upper)</th>
+<th>2.5%</th>
+<th>97.5%</th>
 </tr>
 </thead>
 <tbody>
@@ -566,7 +566,7 @@ the set of explanatory variables for the reasons explained in 3.a.</p>
 <td>3.57</td>
 <td>0.0003</td>
 <td>0.15</td>
-<td>0.50</td>
+<td>0.5</td>
 </tr>
 <tr class="even">
 <td>During covid</td>
@@ -574,7 +574,7 @@ the set of explanatory variables for the reasons explained in 3.a.</p>
 <td>0.12</td>
 <td>-0.52</td>
 <td>0.6</td>
-<td>-0.29</td>
+<td>-0.28</td>
 <td>0.17</td>
 </tr>
 <tr class="odd">
@@ -583,8 +583,8 @@ the set of explanatory variables for the reasons explained in 3.a.</p>
 <td>0.12</td>
 <td>1.99</td>
 <td>0.047</td>
-<td>0.003</td>
-<td>0.46</td>
+<td>0.004</td>
+<td>0.47</td>
 </tr>
 </tbody>
 </table>
@@ -729,14 +729,14 @@ playing at home and playing away. Before the COVID-19 pandemic, we
 observe a significant (at the usual levels of 5% and 1%) positive
 coefficient associated with playing at home, indicating a clear home
 advantage. The coefficient is practically significant, with a value of
-0.19, which means that 1.2 is the proportional change in the expected
-number of goals when a team plays at home as opposed to playing away.
-However, during the pandemic, the coefficient associated with playing at
-home is not statistically significant since 0 belongs to the 95%
-confidence interval, indicating no significant effect of playing at
-home. After the closed-door period, the effect of playing at home
-becomes statistically and practically significant again and is of almost
-the same magnitude.</p>
+0.19 (97.5%CI = [0.10, 0.29]), which means that 1.2 is the proportional
+change in the expected number of goals when a team plays at home as
+opposed to playing away. However, during the pandemic, the coefficient
+associated with playing at home is not statistically significant since 0
+belongs to the confidence interval, indicating no significant effect of
+playing at home. After the closed-door period, the effect of playing at
+home becomes statistically and practically significant again and is of
+almost the same magnitude.</p>
 <p>The second approach considers the number of strictly won games and
 models it again using a Poisson or log-linear regression. The estimated
 coefficient before the pandemic is also statistically and practically
@@ -748,17 +748,30 @@ significant (because 0 belongs to the confidence interval), indicating
 no home advantage during this period. Finally, the home advantage
 reappears after the re-opening of stadiums, as observed in the linear
 regression model.</p>
-<p>Confidence intervals for all models were computed with the package
-<em>glmtoolbox</em> and the function <em>confint2</em> which computes
-the confidence interval based on the Wald test. One can also compute the
-prediction confidence interval with the function <em>add_ci</em> from
-the package <em>ciTools</em>.</p>
-<p>By taking in account the promoted and relegated teams, we obtain
-consistent results, and we can even identify that the effect before and
-after the closed-door period is the same. Taking in account the draw
-effect, we obtain estimated coefficients of the same magnitude and
-statistical significance as before. The model is thus stable which gives
-additional confidence in its accuracy.</p>
+<p>The confidence intervals for parameters were computed with the usual
+<em>confint</em> function. The interpretation is as follows : if 0
+belongs to the confidence interval, the coefficient is not statistically
+significant, but otherwise, the coefficient is statistically
+significant. If the confidence interval is very wide, then, the
+coefficient is not practically significant since it varies in a very
+dispersed range of values. Here, the confidence intervals we have show
+that the coefficients are statistically significant for all the models
+before and after COVID-19, but they are never during the closed-door
+matches period. Before the COVID-19 period, the coefficients are
+practically significant since the intervals are not too wide, but it is
+not the case after the pandemic. Thus, we can only say that there is a
+home advantage effect after the pandemic, but its magnitude is harder to
+determine precisely. To compute the confidence intervals for prediction,
+one should use the function <em>add_ci</em> from the package
+<em>ciTools</em>, which will take in account the fact that we used a
+link function to build the model, and thus that the confidence intervals
+may not be gaussian.</p>
+<p>Finally, by taking in account the promoted and relegated teams, we
+obtain consistent results, and we can even identify that the effect
+before and after the closed-door period is the same. Taking in account
+the draw effect, we obtain estimated coefficients of the same magnitude
+and statistical significance as before. The model is thus stable which
+gives additional confidence in its accuracy.</p>
 </div>
 <div id="discussion" class="section level1">
 <h1>7. Discussion</h1>
@@ -772,12 +785,12 @@ the effect was generally similar although slightly smaller. Possible
 explanations for this slight decrease include teams becoming accustomed
 to playing in empty stadiums or changes in fan behavior before and after
 the pandemic.</p>
-<p>We built Poisson models in our work, but the mean was generally
-different from the variance in all the data sets we built. Taking in
-account the over dispersion doesn’t change the estimated coefficients
-but can affect the p-value and therefore the significance of our models.
-We could use a negative binomial model or a quasi poisson specification
-to address this issue.</p>
+<p>We considered Poisson models in our work, but the mean was generally
+greater from the variance in all the data sets we built, which showed
+under dispersion. Taking it in account doesn’t change the estimated
+coefficients but can affect the p-value and therefore the significance
+of our models. We could use a negative binomial model or a quasi poisson
+specification to address this issue.</p>
 <p>The diagnostics and stability analyses demonstrate the robustness of
 the models, which instills confidence in the results. However, as
 previously stated, some influential outliers were identified and can
