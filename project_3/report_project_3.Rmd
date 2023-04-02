@@ -225,6 +225,11 @@ To be able to interpret the coefficients as causal, we thus only regress the num
 
 ```{r goals model, echo=FALSE, include = FALSE}
 #Poisson models
+#overdispersion of the data
+mean(df_goals_before$numb_2)/sd(df_goals_before$numb_2)
+mean(df_goals_during$numb_2)/sd(df_goals_during$numb_2)
+mean(df_goals_after$numb_2)/sd(df_goals_after$numb_2)
+
 #model before covid
 model_goals_before <- glm(df_goals_before$numb_2 ~ df_goals_before$team_status, family=poisson(link="log"))
 summary(model_goals_before)
@@ -238,9 +243,10 @@ model_goals_after <- glm(df_goals_after$numb_2 ~ df_goals_after$team_status, fam
 summary(model_goals_after)
 
 #confidence intervals
-confint(model_goals_after)
-confint(model_goals_during)
-confint(model_goals_before)
+library(glmtoolbox)
+confint2(model_goals_after, level = 0.95, test = "wald")
+confint2(model_goals_during, level = 0.95, test = "wald")
+confint2(model_goals_before, level = 0.95,test = "wald")
 ```
 
 
@@ -249,10 +255,10 @@ The estimated coefficient associated with the home team is given in the followin
 *Table1 : Estimated coefficients for the number of goals*
 
 
-|              | Estimate | Std.Error | t value | Pr(>\|t\|) |2.5% | 97.5%|
+|              | Estimate | Std.Error | t value | Pr(>\|t\|) |95%CI (lower) | 95%CI (upper) |
 |--------------|----------|-----------|---------|------------|-----|------|
-| Before covid | 0.19     | 0.048     | 4.08    | 4.43e-05   |0.10 | 0.29 | 
-| During covid | 0.008    | 0.06      | 0.13    | 0.90       |-0.12| 0.13 |
+| Before covid | 0.19     | 0.048     | 4.08    | 4.43e-05   | - 0.09 | 0.48 | 
+| During covid | 0.008    | 0.06      | 0.13    | 0.90       |-0.2| 0.22 |
 | After covid  | 0.15     | 0.06      | 2.41    | 0.016      |0.027| 0.27 |
 
 The equation for this model can be written 
@@ -265,6 +271,12 @@ where $\gamma_{1}$ is the estimated coefficient associated to playing home rathe
 In this section, we explore whether home teams have an advantage in terms of winning matches. To this end, we consider the same three periods (before, during, and after COVID-19) and estimate the coefficient associated with playing at home on our count data. This approach provides an alternative perspective on the home advantage phenomenon, which can help us to gain a more comprehensive understanding of the impact of playing at home in the English Premier League. Again, we only include the variable corresponding to playing home or away in the set of explanatory variables for the reasons explained in 3.a.
 
 ```{r poisson model, echo=FALSE, include = FALSE}
+#overdispersion of the data
+mean(df_wins_before$number)/sd(df_wins_before$number)
+mean(df_wins_during$number)/sd(df_wins_during$number)
+mean(df_wins_after$number)/sd(df_wins_after$number)
+
+#models
 model_wins_before <- glm(df_wins_before$number ~ df_wins_before$team_status, family=poisson(link="log"))
 summary(model_wins_before)
 
@@ -275,9 +287,9 @@ model_wins_after <- glm(df_wins_after$number ~ df_wins_after$team_status, family
 summary(model_wins_after)
 
 #confidence intervals
-confint(model_wins_after)
-confint(model_wins_during)
-confint(model_wins_before)
+confint2(model_wins_after, level = 0.95, test = "wald")
+confint2(model_wins_during, level = 0.95, test = "wald")
+confint2(model_wins_before, level = 0.95, test = "wald")
 ```
 
 Table 2 displays the results.
@@ -285,11 +297,11 @@ Table 2 displays the results.
 *Table2 : Estimated coefficients for the number of wins*
 
 
-|              | Estimate | Std.Error | t value | Pr(>\|t\|) | 2.5%   | 97.5% |
+|              | Estimate | Std.Error | t value | Pr(>\|t\|) | 95%CI (lower)| 95%CI (upper) |
 |--------------|----------|-----------|---------|------------|--------|-------|
-| Before covid | 0.32     | 0.09      | 3.57    | 0.0003     | 0.15   | 0.5   |
-| During covid | -0.06    | 0.12      | -0.52   | 0.6        | -0.28  | 0.17  |
-| After covid  | 0.23     | 0.12      | 1.99    | 0.047      | 0.004  | 0.47  |
+| Before covid | 0.32     | 0.09      | 3.57    | 0.0003     | 0.15   | 0.50  |
+| During covid | -0.06    | 0.12      | -0.52   | 0.6        | -0.29  | 0.17  |
+| After covid  | 0.23     | 0.12      | 1.99    | 0.047      | 0.003  | 0.46  |
 
 The equation for this model can be written 
 $log(\mathbb{E}(N_{wins})) = \beta_{0} + \beta_{1}Home + \zeta$
@@ -559,15 +571,19 @@ summary(model_wins_after_draw)
 
 
 # 6. Interpretation
-In section 3, we present two models to quantify the home advantage. The first model examines the difference in the number of goals between playing at home and playing away. Before the COVID-19 pandemic, we observe a significant (at the usual levels of 5% and 1%) positive coefficient associated with playing at home, indicating a clear home advantage. The coefficient is practically significant, with a value of 0.19 (95CI = [0.10, 0.29]), which means that 1.2 is the proportional change in the expected number of goals when a team plays at home as opposed to playing away. However, during the pandemic, the coefficient associated with playing at home is not statistically significant since 0 belongs to the confidence interval, indicating no significant effect of playing at home. After the closed-door period, the effect of playing at home becomes statistically and practically significant again and is of almost the same magnitude.
+In section 3, we present two models to quantify the home advantage. The first model examines the difference in the number of goals between playing at home and playing away. Before the COVID-19 pandemic, we observe a significant (at the usual levels of 5% and 1%) positive coefficient associated with playing at home, indicating a clear home advantage. The coefficient is practically significant, with a value of 0.19, which means that 1.2 is the proportional change in the expected number of goals when a team plays at home as opposed to playing away. However, during the pandemic, the coefficient associated with playing at home is not statistically significant since 0 belongs to the 95% confidence interval, indicating no significant effect of playing at home. After the closed-door period, the effect of playing at home becomes statistically and practically significant again and is of almost the same magnitude.
 
 The second approach considers the number of strictly won games and models it again using a Poisson or log-linear regression. The estimated coefficient before the pandemic is also statistically and practically significant (0.32) at the usual levels (5% and 1%). Taking the exponential, we obtain that 1.37 is the proportional change in the expected number of wins when a team plays at home as opposed to playing away. Again, the coefficient associated with the pandemic period is not significant (because 0 belongs to the confidence interval), indicating no home advantage during this period. Finally, the home advantage reappears after the re-opening of stadiums, as observed in the linear regression model.
+
+Confidence intervals for all models were computed with the package *glmtoolbox* and the function *confint2* which computes the confidence interval based on the Wald test. One can also compute the prediction confidence interval with the function *add_ci* from the package *ciTools*. 
 
 By taking in account the promoted and relegated teams, we obtain consistent results, and we can even identify that the effect before and after the closed-door period is the same. Taking in account the draw effect, we obtain estimated coefficients of the same magnitude and statistical significance as before. The model is thus stable which gives additional confidence in its accuracy. 
 
 
 # 7. Discussion
 The models developed show a disappearance of home advantage during the COVID-19 pandemic due to the closure of public stadiums. Since the stadiums' grass didn't change, the most plausible explanation of this decrease is the absence of supporters that can influence the players and the referees. That hypothesis seems the most relevant since after the pandemic, the home advantage returned with the fans. The magnitude of the effect was generally similar although slightly smaller. Possible explanations for this slight decrease include teams becoming accustomed to playing in empty stadiums or changes in fan behavior before and after the pandemic.
+
+We built Poisson models in our work, but the mean was generally different from the variance in all the data sets we built. Taking in account the over dispersion doesn't change the estimated coefficients but can affect the p-value and therefore the significance of our models. We could use a negative binomial model or a quasi poisson specification to address this issue.  
 
 The diagnostics and stability analyses demonstrate the robustness of the models, which instills confidence in the results. However, as previously stated, some influential outliers were identified and can possibly slightly bias the models we built. As a deepening of this work, one could therefore refit the models without those outliers.
 
