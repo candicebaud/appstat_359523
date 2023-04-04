@@ -107,52 +107,6 @@ df_restr <- df_restr %>% mutate(
 df_restr <- df_restr %>% 
   select(date, home_goals, away_goals, team_name, team_status, covid_y_n, covid_before_after, win, goals, Referee )
 
-#data frame with only the values before covid
-df_before <- df_restr %>%
-  filter(covid_before_after == 'Pre-covid')
-
-#data frame with only the values during covid
-df_during <- df_restr %>% 
-  filter(covid_before_after == 'In-covid')
-
-#data frame with only the values after covid
-df_after <- df_restr %>% 
-  filter(covid_before_after == 'Post-covid')
-
-#data frames that count the number of victories before covid and all periods of time 
-df_wins_before <- df_restr %>% 
-  filter(covid_before_after =='Pre-covid')%>%  
-  filter(win == "1")%>% 
-  select(team_name, team_status, win)%>% 
-  group_by(team_name, team_status)%>%
-  summarise(number=n())%>% 
-  mutate(numb_win = number)
-
-df_wins_during <- df_restr %>%
-  filter(covid_before_after =='In-covid')%>%  
-  filter(win == "1")%>% 
-  select(team_name, team_status, win)%>% 
-  group_by(team_name, team_status)%>%
-  summarise(number=n())%>% 
-  mutate(numb_win = number)
-
-df_wins_after <- df_restr %>% 
-  filter(covid_before_after =='Post-covid')%>%  
-  filter(win == "1")%>% 
-  select(team_name, team_status, win)%>% 
-  group_by(team_name, team_status)%>%
-  summarise(number=n())%>% 
-  mutate(numb_win = number)
-
-df_goals_before <- df_restr %>% 
-  filter(covid_before_after =='Pre-covid')%>%  
-  select(team_name, team_status, goals)%>% 
-  group_by(team_name, team_status, goals)%>%
-  summarise(number=n())%>% 
-  mutate(numb_goals = number * goals) %>%
-  group_by(team_name, team_status) %>%
-  summarise(numb_2 = sum(numb_goals))
-
 df_wins_all <- df_restr %>% 
   select(covid_before_after, team_name, team_status, win)%>% 
   filter(win == "1") %>% 
@@ -167,29 +121,8 @@ df_goals_all <- df_restr %>%
   group_by(team_name, team_status, covid_before_after) %>%
   summarise(numb_2 = sum(numb_goals))
 
-
-
-df_goals_during <- df_restr %>% 
-  filter(covid_before_after =='In-covid')%>%  
-  select(team_name, team_status, goals)%>% 
-  group_by(team_name, team_status, goals)%>%
-  summarise(number=n())%>% 
-  mutate(numb_goals = number * goals) %>%
-  group_by(team_name, team_status) %>%
-  summarise(numb_2 = sum(numb_goals))
-
-df_goals_after <- df_restr %>% 
-  filter(covid_before_after =='Post-covid')%>%  
-  select(team_name, team_status, goals)%>% 
-  group_by(team_name, team_status, goals)%>%
-  summarise(number=n())%>% 
-  mutate(numb_goals = number * goals) %>%
-  group_by(team_name, team_status) %>%
-  summarise(numb_2 = sum(numb_goals))
-
 ```
 
-*Figure1* illustrates the difference in goals between the home team and the away team over time. The red line represents its average when the matches are played with supporters, while the blue line represents its average restricted to the COVID-19 period. The blue zone highlights the period during the COVID-19 pandemic, when matches were played without spectators in attendance. This period is referred to as closed-doors matches. The figure provides insights into how the home advantage phenomenon might be affected by playing in empty stadiums compared to games where fans are present.
 
 ```{r, fig.align="center", fig.cap="Figure 1 : Difference between home goals and away goals"}
 graph<- df_restr %>% 
@@ -200,16 +133,28 @@ graph<- df_restr %>%
 
 graph %>% ggplot(aes(x=date, y=avg_diff)) + 
   geom_line() + 
-  geom_hline(yintercept = mean((graph%>%filter(covid_y_n == 0))$avg_diff), col = 'red', show.legend = T)+
+  geom_hline(yintercept = mean((graph%>%filter(covid_y_n == 0))$avg_diff),linetype='dashed', col = 'red', show.legend = T)+
   annotate("text", x=as.Date("2018-06-10", format = "%Y-%m-%d"), y=mean((graph%>%filter(covid_y_n == 0))$avg_diff) + 0.5, label="0.28", col = 'red') + 
   annotate("text", x=as.Date("2018-06-10", format = "%Y-%m-%d"), y=mean((graph%>%filter(covid_y_n == 1))$avg_diff) - 0.5, label="0.03", col = 'blue') + 
-  geom_hline(yintercept = mean((graph%>%filter(covid_y_n == 1))$avg_diff), col = 'blue', show.legend = T)+
+  geom_hline(yintercept = mean((graph%>%filter(covid_y_n == 1))$avg_diff), linetype = 'dashed', col = 'blue', show.legend = T)+
   geom_rect(aes(xmin = as.Date("2020-03-12", format = "%Y-%m-%d"), xmax = as.Date("2021-06-01", format = "%Y-%m-%d"), ymin = -Inf, ymax = Inf), fill = "blue", alpha = 0.003) +
   labs(x = 'Date', y = 'Average difference of goals', title = 'Difference between home goals and away goals')
+
+
+#graph %>% ggplot(aes(x=date, y=avg_home), color = 'blue') + 
+  #geom_line(aes(x = date, y = avg_away), color = "red")+
+  #geom_line() + 
+  #geom_hline(yintercept = mean((graph%>%filter(covid_y_n == 0))$avg_away),linetype='dashed', col = 'red', show.legend = T)+
+  #annotate("text", x=as.Date("2018-06-10", format = "%Y-%m-%d"), y=mean((graph%>%filter(covid_y_n == 0))$avg_diff) + 0.5, label="0.28", col = 'red') + 
+  #annotate("text", x=as.Date("2018-06-10", format = "%Y-%m-%d"), y=mean((graph%>%filter(covid_y_n == 1))$avg_diff) - 0.5, label="0.03", col = 'blue') + 
+  #geom_hline(yintercept = mean((graph%>%filter(covid_y_n == 1))$avg_diff), linetype = 'dashed', col = 'blue', show.legend = T)+
+  #geom_rect(aes(xmin = as.Date("2020-03-12", format = "%Y-%m-%d"), xmax = as.Date("2021-06-01", format = "%Y-%m-%d"), ymin = -Inf, ymax = Inf), fill = "blue", alpha = 0.003) +
+  #labs(x = 'Date', y = 'Average difference of goals', title = 'Difference between home goals and away goals')
 
 #mean((graph%>%filter(covid_y_n == 0))$avg_diff)
 #mean((graph%>%filter(covid_y_n == 1))$avg_diff)
 ```
+*Figure1* illustrates the difference in goals between the home team and the away team over time. The red line represents its average when the matches are played with supporters, while the blue line represents its average restricted to the COVID-19 period. The blue zone highlights the period during the COVID-19 pandemic, when matches were played without spectators in attendance. This period is referred to as closed-doors matches. The figure provides insights into how the home advantage phenomenon might be affected by playing in empty stadiums compared to games where fans are present.
 
 The red line is clearly above zero and the corresponding mean is equal to 0.28, which means that in average when games are played with supporters, the home team scores 0.28 more goals than the away team. The blue line however that only takes in account the COVID-19 period is close to zero (0.03), which would mean that there is a very little or no effect in playing home rather than away when the stadiums are empty. 
 
@@ -217,54 +162,28 @@ In the next section, we model the data to gain a deeper understanding of the ext
 
 # 3. Model building
 ## a. Poisson model for the number of goals
-Home advantage can manifest in various forms, and we consider one indicator to be a team scoring more goals when playing at home. We construct separate Poisson models for each COVID-19 period (before, during, and after) to evaluate the effect of playing at home on a team's goal scoring ability. Specifically, we assess whether there is a statistically significant difference in the number of goals scored by a team when playing at home compared to away during each period. 
-
-The data set contains a lot of variables, but we are only interested in this subsection in the number of goals scored. All teams are of the same league so the variable is irrelevant. Match statistics available are mostly a consequence of the home advantage so we don't use them neither in this model because we want to identify the home-advantage 'causal' effect [4] [5]. Those statistics variables may be highly correlated with the number of goals but they do not have an explanatory power regarding the issue of home advantage and scoring ability of the teams. 
-
-To be able to interpret the coefficients as causal, we thus only regress the number of goals on the variable that specifies if the team is playing away or at home. We do not include cross effects with other variables. 
+Home advantage can manifest in various forms, and we consider one indicator to be a team scoring more goals when playing at home. We construct a global Poisson model to evaluate the effect of playing at home on a team's goal scoring ability and the COVID-19 effect. Specifically, we assess whether there is a statistically significant difference in the number of goals scored by a team when playing at home compared to away during each period. 
 
 ```{r goals model, echo=FALSE, include = FALSE}
 #Poisson models
-#over dispersion of the data
-mean(df_goals_before$numb_2)/sd(df_goals_before$numb_2)
-mean(df_goals_during$numb_2)/sd(df_goals_during$numb_2)
-mean(df_goals_after$numb_2)/sd(df_goals_after$numb_2)
-
-#model before covid
-model_goals_before <- glm(df_goals_before$numb_2 ~ df_goals_before$team_status, family=poisson(link="log"))
-summary(model_goals_before)
-
-#model during covid
-model_goals_during <- glm(df_goals_during$numb_2 ~ df_goals_during$team_status, family=poisson(link="log"))
-summary(model_goals_during)
-
-#model after covid
-model_goals_after <- glm(df_goals_after$numb_2 ~ df_goals_after$team_status, family=poisson(link="log"))
-summary(model_goals_after)
-
-#confidence intervals
-confint(model_goals_after)
-confint(model_goals_during)
-confint(model_goals_before)
-
-
-#global model
 model_global_goals <- glm(numb_2 ~ team_name + team_status + covid_before_after + team_status*covid_before_after, data = df_goals_all, family=poisson(link="log"))
 summary(model_global_goals)
 plot(model_global_goals)
+confint(model_global_goals)
 ```
 
 
-The estimated coefficient associated with the home team is given in the following table :
+The estimated coefficients are in the following table:
 
-*Table1 : Estimated coefficients for the number of goals*
+*Table1 : Estimated coefficients*
 
 
-|              | Estimate | Std.Error | t value | Pr(>\|t\|) |2.5% | 97.5%|
-|--------------|----------|-----------|---------|------------|-----|------|
-| Before covid | 0.19     | 0.048     | 4.08    | 4.43e-05   |0.10 | 0.29 | 
-| During covid | 0.008    | 0.06      | 0.13    | 0.90       |-0.12| 0.13 |
-| After covid  | 0.15     | 0.06      | 2.41    | 0.016      |0.027| 0.27 |
+|                       | Estimate | Std.Error | t value | Pr(>\|t\|) |2.5% | 97.5%|
+|-----------------------|----------|-----------|---------|------------|-----|------|
+| Hometeam              | 0.008    | 0.06      |  0.13   | 0.9        |-0.11| 0.13 |
+| Pre-covid*hometeam    | 0.19     | 0.08      |  2.37   | 0.02       |0.03 | 0.34 | 
+| Post-covid*hometeam   | 0.14     | 0.08      |  1.59   | 0.11       |-0.03| 0.31 |
+
 
 The equation for this model can be written 
 $log(\mathbb{E}(N_{goals})) = \gamma_{0} +  \gamma_{1}Home + \epsilon$
@@ -276,31 +195,10 @@ where $\gamma_{1}$ is the estimated coefficient associated to playing home rathe
 In this section, we explore whether home teams have an advantage in terms of winning matches. To this end, we consider the same three periods (before, during, and after COVID-19) and estimate the coefficient associated with playing at home on our count data. This approach provides an alternative perspective on the home advantage phenomenon, which can help us to gain a more comprehensive understanding of the impact of playing at home in the English Premier League. Again, we only include the variable corresponding to playing home or away in the set of explanatory variables for the reasons explained in 3.a.
 
 ```{r poisson model, echo=FALSE, include = FALSE}
-#over dispersion of the data
-mean(df_wins_before$number)/sd(df_wins_before$number)
-mean(df_wins_during$number)/sd(df_wins_during$number)
-mean(df_wins_after$number)/sd(df_wins_after$number)
-
-#models
-model_wins_before <- glm(df_wins_before$number ~ df_wins_before$team_status, family=poisson(link="log"))
-summary(model_wins_before)
-
-model_wins_during <- glm(df_wins_during$number ~ df_wins_during$team_status, family=poisson(link="log"))
-summary(model_wins_during)
-
-model_wins_after <- glm(df_wins_after$number ~ df_wins_after$team_status, family=poisson(link="log"))
-summary(model_wins_after)
-
-#confidence intervals
-confint(model_wins_after)
-confint(model_wins_during)
-confint(model_wins_before)
-
-
-#global model 
 model_global_wins <- glm(number_wins ~ team_name+ team_status + covid_before_after + team_status*covid_before_after, data = df_wins_all, family=poisson(link="log"))
 summary(model_global_wins)
 plot(model_global_wins)
+confint(model_global_wins)
 ```
 
 Table 2 displays the results.
@@ -308,11 +206,11 @@ Table 2 displays the results.
 *Table2 : Estimated coefficients for the number of wins*
 
 
-|              | Estimate | Std.Error | t value | Pr(>\|t\|) | 2.5%   | 97.5% |
-|--------------|----------|-----------|---------|------------|--------|-------|
-| Before covid | 0.32     | 0.09      | 3.57    | 0.0003     | 0.15   | 0.5   |
-| During covid | -0.06    | 0.12      | -0.52   | 0.6        | -0.28  | 0.17  |
-| After covid  | 0.23     | 0.12      | 1.99    | 0.047      | 0.004  | 0.47  |
+|                       | Estimate | Std.Error | t value | Pr(>\|t\|) |2.5% | 97.5%|
+|-----------------------|----------|-----------|---------|------------|-----|------|
+| Hometeam              | -0.06    | 0.12      | -0.5    | 0.6        |-0.29| 0.17 |
+| Pre-covid*hometeam    | 0.39     | 0.15      | 2.62    | 0.009      |0.09 | 0.68 | 
+| Post-covid*hometeam   | 0.29     | 0.17      | 1.78    | 0.07       |-0.03| 0.62 |
 
 The equation for this model can be written 
 $log(\mathbb{E}(N_{wins})) = \beta_{0} + \beta_{1}Home + \zeta$
@@ -328,100 +226,10 @@ The residuals for the other periods (during COVID-19, after COVID-19 and between
 The residuals for the poisson model on the number of goals are also very similar and identify the same amount of influential outliers. The plots are also available in the code for the reader. 
 
 
-```{r, fig.align="center", fig.cap="Figure 2: Residuals diagnostics for the wins model before covid"}
+```{r, fig.align="center", fig.cap="Figure 2: Residuals diagnostics for the wins model"}
 par(mfrow=c(2,2))
-model_wins <- glm(df_wins_all$number ~ df_wins_all$team_status, family=poisson(link="log"))
-plot(model_wins)
-
-#other periods
-#par(mfrow=c(2,2))
-#plot(model_wins_during)
-
-#par(mfrow=c(2,2))
-#plot(model_wins_after)
-
-#for the poisson models
-#par(mfrow=c(2,2))
-#plot(model_goals_before)
-
-#par(mfrow=c(2,2))
-#plot(model_goals_during)
-
-#par(mfrow=c(2,2))
-#plot(model_goals_after)
-
+plot(model_global_wins)
 ```   
-
-
-```{r 2018-19, echo=FALSE, include = FALSE}
-#since the diagnostics have the same shape, I didn't include the residuals diagnostics for the 2018-19 season only in the report, but they can be plotted with the code below
-
-df_restr_19 <- df %>% select(Date, HomeTeam, AwayTeam, FTR, FTHG, FTAG)
-
-#pivot longer to create two rows for each match
-df_restr_19 <- df_restr_19 %>% pivot_longer(cols = c(HomeTeam, AwayTeam), names_to = 'Team')
-
-#variable win
-df_restr_19 <- df_restr_19 %>% mutate(
-  win = as.factor(case_when(
-    Team == 'HomeTeam' & FTR == 'H' ~ 1, 
-    Team == 'AwayTeam' & FTR == 'H' ~ 0,
-    Team == 'HomeTeam' & FTR == 'A' ~ 0,
-    Team == 'AwayTeam' & FTR == 'A' ~ 1,
-    Team == 'HomeTeam' & FTR == 'D' ~ 2,
-    Team == 'AwayTeam' & FTR == 'D' ~ 2,
-    
-  )
-))
-
-#score variable 
-df_restr_19 <- df_restr_19 %>% mutate(
-  goals = case_when(
-    Team == 'HomeTeam' ~ FTHG,
-    Team == 'AwayTeam' ~ FTAG
-  )
-)
-
-#variable to assess if covid or not
-df_restr_19 <- df_restr_19 %>% mutate(
-  covid = as.factor(case_when(
-      Date >= "2020-03-12" & Date <= "2021-06-01"~ 1,
-      TRUE ~ 0
-  ))
-)
-
-df_restr_19 <- df_restr_19 %>% mutate(
-  covid_before_after = as.factor(case_when(
-      Date >= "2020-03-12" & Date <= "2021-06-01"~ "In-covid",
-      Date <= "2020-03-12" ~"Pre-covid",
-      TRUE ~ "Post-covid"
-  ))
-)
-
-#rename variables
-df_restr_19 <- df_restr_19 %>% mutate(
-  home_goals = FTHG,
-  away_goals = FTAG,
-  team_name = value,
-  team_status = Team,
-  covid_y_n = covid,
-  date = Date
-)
-
-#final data set
-df_restr_19 <- df_restr_19 %>% select(date, home_goals, away_goals, team_name, team_status, covid_y_n, covid_before_after, win, goals )
-
-df_restr_19 <- df_restr_19%>%select(team_name, team_status, win) %>% filter(win == "1")%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
-
-model_19 <- glm(df_restr_19$number ~ df_restr_19$team_status, family=poisson(link="log"))
-
-
-#res <- residuals(model_19, type="deviance")
-par(mfrow=c(2,2))
-plot(model_19)
-
-```
-
 
 
 # 5. Stability 
@@ -439,21 +247,6 @@ f = setdiff(df21$HomeTeam,df20$HomeTeam) #promoted
 
 names_del <- unique(c(A, B, C, D, E, f)) #we will not take in account the ones that were relegated and promoted
 
-df_wins_before_rel <- df_restr %>% filter(covid_before_after =='Pre-covid')%>%  filter(win == "1")%>% filter(!(team_name%in%names_del))%>%select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
-
-df_wins_during_rel <- df_restr %>% filter(covid_before_after =='In-covid')%>%  filter(win == "1")%>% filter(!(team_name%in%names_del))%>%select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
-
-df_wins_after_rel <- df_restr %>% filter(covid_before_after =='Post-covid')%>%  filter(win == "1")%>% filter(!(team_name%in%names_del))%>%select(team_name, team_status, win)%>% group_by(team_name, team_status)%>%summarise(number=n())%>% mutate(numb_win = number)
-
-model_wins_before_rel <- glm(df_wins_before_rel$number ~ df_wins_before_rel$team_status, family=poisson(link="log"))
-summary(model_wins_before_rel)
-
-model_wins_during_rel <- glm(df_wins_during_rel$number ~ df_wins_during_rel$team_status, family=poisson(link="log"))
-summary(model_wins_during_rel)
-
-model_wins_after_rel <- glm(df_wins_after_rel$number ~ df_wins_after_rel$team_status, family=poisson(link="log"))
-summary(model_wins_after_rel)
-
 df_wins_all_rel <- df_wins_all %>% select(team_name, team_status, covid_before_after, number_wins) %>% filter(!(team_name%in%names_del))
 
                                           
@@ -464,11 +257,11 @@ plot(model_wins_all_rel)
 
 *Table 3 : Estimated coefficients of the Poisson model without relegated and promoted teams*
 
-|              | Estimate | Std.Error | t value | Pr(>\|t\|) |
-|--------------|----------|-----------|---------|------------|
-| Before covid | 0.28     | 0.1       | 2.86    | 0.004      |
-| During covid | -0.07    | 0.13      | -0.51   | 0.61       |
-| After covid  | 0.29     | 0.13      | 2.29    | 0.02       |
+|                       | Estimate | Std.Error | t value | Pr(>\|t\|) |
+|-----------------------|----------|-----------|---------|------------|
+| Hometeam              | -0.07    | 0.13      | -0.5    | 0.6        |
+| Pre-covid*hometeam    | 0.35     | 0.16      | 2.15    | 0.03       |
+| Post-covid*hometeam   | 0.36     | 0.18      | 1.98    | 0.05       |
 
 
 
@@ -477,90 +270,7 @@ Another limitation of the model described in Part 3.b is that we only counted th
 
 
 ```{r draw effect, echo=FALSE, include = FALSE}
-#if we consider that draw is like winning 
-df_wins_before_bis <- df_restr %>%
-  filter(covid_before_after =='Pre-covid')%>% 
-  filter(win != "0")%>% 
-  select(team_name, team_status, win)%>% 
-  group_by(team_name, team_status)%>%
-  summarise(number=n())%>% 
-  mutate(numb_win = number)
-
-df_wins_during_bis <- df_restr %>% 
-  filter(covid_before_after =='In-covid')%>%  
-  filter(win != "0")%>%
-  select(team_name, team_status, win)%>% 
-  group_by(team_name, team_status)%>%
-  summarise(number=n())%>%
-  mutate(numb_win = number)
-
-df_wins_after_bis <- df_restr %>% 
-  filter(covid_before_after =='Post-covid')%>%  
-  filter(win != "0")%>% 
-  select(team_name, team_status, win)%>%
-  group_by(team_name, team_status)%>%
-  summarise(number=n())%>%
-  mutate(numb_win = number)
-
-
-model_wins_before_bis <- glm(df_wins_before_bis$number ~ df_wins_before_bis$team_status, family=poisson(link="log"))
-summary(model_wins_before_bis)
-
-model_wins_during_bis <- glm(df_wins_during_bis$number ~ df_wins_during_bis$team_status, family=poisson(link="log"))
-summary(model_wins_during_bis)
-
-model_wins_after_bis <- glm(df_wins_after_bis$number ~ df_wins_after_bis$team_status, family=poisson(link="log"))
-summary(model_wins_after_bis)
-
-
-
-
 #if we consider draw as half victory
-df_wins_before_draw <- df_restr %>% 
-  filter(covid_before_after =='Pre-covid')%>%
-  select(team_name, team_status, win)%>%
-  mutate(
-    win_numeric = case_when(
-      win == 0 ~ 0,
-      win == 1 ~ 1,
-      win == 2 ~ 0.5
-    )
-  ) %>%
-  group_by(team_name, team_status, win_numeric)%>%
-  summarise(number = n(),s = sum(win_numeric)) %>% 
-  group_by(team_name, team_status)%>%
-  summarise(score = sum(s))
-
-df_wins_during_draw <- df_restr %>% 
-  filter(covid_before_after =='In-covid')%>%
-  select(team_name, team_status, win)%>%
-  mutate(
-    win_numeric = case_when(
-      win == 0 ~ 0,
-      win == 1 ~ 1,
-      win == 2 ~ 0.5
-    )
-  ) %>%
-  group_by(team_name, team_status, win_numeric)%>%
-  summarise(number = n(),s = sum(win_numeric)) %>% 
-  group_by(team_name, team_status)%>%
-  summarise(score = sum(s))
-
-df_wins_after_draw <- df_restr %>% 
-  filter(covid_before_after =='Post-covid')%>%
-  select(team_name, team_status, win)%>%
-  mutate(
-    win_numeric = case_when(
-      win == 0 ~ 0,
-      win == 1 ~ 1,
-      win == 2 ~ 0.5
-    )
-  ) %>%
-  group_by(team_name, team_status, win_numeric)%>%
-  summarise(number = n(),s = sum(win_numeric)) %>% 
-  group_by(team_name, team_status)%>%
-  summarise(score = sum(s))
-
 df_wins_all_draw <- df_restr %>% 
   select(team_name, team_status, covid_before_after, win)%>%
   mutate(
@@ -575,30 +285,19 @@ df_wins_all_draw <- df_restr %>%
   group_by(team_name, team_status, covid_before_after)%>%
   summarise(score = sum(s))
 
-model_wins_before_draw <- glm(df_wins_before_draw$score ~ df_wins_before_draw$team_status, family=poisson(link="log"))
-summary(model_wins_before_draw)
 
-model_wins_during_draw <- glm(df_wins_during_draw$score ~ df_wins_during_draw$team_status, family=poisson(link="log"))
-summary(model_wins_during_draw)
-
-model_wins_after_draw <- glm(df_wins_after_draw$score ~ df_wins_after_draw$team_status, family=poisson(link="log"))
-summary(model_wins_after_draw)
-
-#remark : if we take in account that draw is equal to victory we obtain quite similar results but the pvalues are a bit higher
-
-model_wins_all_draw <- glm(score ~ team_status + team_name + covid_before_after + covid_before_after*team_status, data = df_wins_all_draw, family = poisson)
+model_wins_all_draw <- glm(score ~ team_name + covid_before_after + team_status + covid_before_after*team_status, data = df_wins_all_draw, family = poisson)
 summary(model_wins_all_draw)
 plot(model_wins_all_draw)
 ```
 
-
 *Table 4 : Estimated coefficients of the Poisson model taking in account the draws*
 
-|              | Estimate | Std.Error | t value | Pr(>\|t\|) |
-|--------------|----------|-----------|---------|------------|
-| Before covid | 0.25     | 0.08      | 3.19    | 0.001      |
-| During covid | -0.05    | 0.10      | -0.46   | 0.64       |
-| After covid  | 0.18     | 0.10      | 1.74    | 0.08       |
+|                       | Estimate | Std.Error | t value | Pr(>\|t\|) |
+|-----------------------|----------|-----------|---------|------------|
+| Hometeam              | -0.05    | 0.1       | -0.46   | 0.64       |
+| Pre-covid*hometeam    | 0.30     | 0.13      | 2.32    | 0.02       |
+| Post-covid*hometeam   | 0.23     | 0.15      | 1.56    | 0.11       |
 
 
 
