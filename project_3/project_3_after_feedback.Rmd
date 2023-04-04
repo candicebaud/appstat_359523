@@ -191,6 +191,11 @@ $log(\mathbb{E}(N_{goals})) = \gamma_{0} +  \gamma_{1}Home + \epsilon$
 where $\gamma_{1}$ is the estimated coefficient associated to playing home rather than away, $\epsilon$ is the residual, $Home$ denotes the fact that the teams plays home and $N_{goals}$ is the number of goals.
 
 
+*New things I noticed : Some teams have associated coefficients that are negative which means they score less in average -> logical that some teams are not as good as others. And some teams have positive coefficients because they are better. The effect of playing home is overall not significant, but the effect of playing home before covid is significant compared to after covid or during covid* 
+
+*Classement équipes 2021-22: Manchester city, liverpool, chelsea, tottenham, arsenal, manchester united, west ham, leicester, brughton, wolves, newcastle, crystal palace, brentford, aston villa, southampton, everton, leeds united, burnley, watford, norwich city*
+
+
 ## b. Poisson model for the number of wins
 In this section, we explore whether home teams have an advantage in terms of winning matches. To this end, we consider the same three periods (before, during, and after COVID-19) and estimate the coefficient associated with playing at home on our count data. This approach provides an alternative perspective on the home advantage phenomenon, which can help us to gain a more comprehensive understanding of the impact of playing at home in the English Premier League. Again, we only include the variable corresponding to playing home or away in the set of explanatory variables for the reasons explained in 3.a.
 
