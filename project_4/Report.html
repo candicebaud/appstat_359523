@@ -511,16 +511,70 @@ Figure 3: Residuals diagnostics grouped by state
 <p>We build in this section a mixed model to be able to account for the
 within-group correlation structure of the data by including random
 effects for each level of nesting.</p>
-<p>By denoting by t the time and r the region we have a model that can
-be expressed with the following equation :</p>
-<p><span class="math inline">\(Y_{r,t} = W_{r}^{T}\beta +
-X_{t,r}^{T}\gamma + Z_{t}^{T}\delta + \epsilon_{r,t}\)</span></p>
+<p>We choose to include in the model ‘fixed’ effects, that is to say : +
+all the nationwide variables since they are not depending on the region
+nor the year + the share of democratic votes in the two last elections +
+the home state of the presidential and vice-president candidate +
+geographic indicators such as deep south, New-England, and West</p>
+<p>We include the variable corresponding to the democratic majority in
+the state legislature as a variable for which the intercept can vary
+across year and region but also the slope. Indeed, with some descriptive
+statistics, one can see that the evolution is very different for every
+state, and that they also start with very different intercepts.</p>
+<p>In a first model, we consider two levels of grouping: observations
+for the same year can be correlated, and observation within the same
+year and the same region can be correlated even further. But, when
+observing the results, it appears that the proportion of variance
+explained by the year grouping is neglectable compared to the one of
+region within year. Thus, we discard it and fit the model with only
+region within year as a grouping factor.</p>
 </div>
 <div id="interpretation" class="section level1">
 <h1>5. Interpretation</h1>
+<p>The random effect variables are significant at amost all levels of
+significance with the Satterthwaite’s method. The coefficients
+associated with the last elections’ results are positive which means
+that if democrat scored a good share of votes in the last elections,
+they are more likely to score a good share in the upcoming elections.
+Nationwide variables are also associated with positive coefficients
+meaning that when the polls are in favor of the Democratic candidate in
+September, and when the economic growth is good, people tend to vote
+more for the Democrats. The coefficient associated with the candidate
+being from the state is positive which also seems plausible since people
+could feel closer to him/her in the region and therefore favor him in
+the election. A strongly negative coefficient is unsurprisingly
+associated with the deep south indicator. A less stronger but still
+negative coefficient is also associated with the West in 1976
+indicator.</p>
+<p>Since we clustered in region within the states, the intercept varies
+across regions within years. For example, the Northeast region, in which
+belongs the state of New-York has an intercept estimated in average at
+0.21 but in 1956, this intercept dropped at 0.16, when President
+Eisenhower was elected.</p>
+<p>Finally, we allowed for the slope of the Democratic majority in the
+legislature to vary also in regions within states, and one can observe
+very different coefficients associated with the different years and
+regions. This gives confidence in the fact that regions are very
+different in this aspect and that they also react very differently to
+economic change, political events …</p>
 </div>
 <div id="discussion" class="section level1">
 <h1>6. Discussion</h1>
+<p>Linear models developed in part 3 lead to results that appear
+appealing but that are incorrect due to the fact that they do not
+account for the hierarchical structure of the data. Instead, we built a
+multilevel model in part 4 that accounts for the clustered effects. The
+results were (to do after)</p>
+<p>To further enhance this study, it would be worthwhile to re-evaluate
+the models using more recent election data, as we only analyzed the
+elections between 1948 and 1992. By doing so, we can assess the
+continuing relevance of the analysis. Since 1992, there have been
+significant shifts in American politics, including the 2008 election of
+Barack Obama and the 2016 election of Donald Trump. Additionally, it may
+be valuable to include other relevant explanatory variables, such as
+metrics for social media communication, if available. Incorporating
+these factors can provide a more comprehensive understanding of the
+dynamics that shape the outcomes of presidential elections.</p>
 </div>
 <div id="references" class="section level1">
 <h1>8. References</h1>

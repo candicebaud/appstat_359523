@@ -270,6 +270,7 @@ plot(model_without_region)
 plot(model_without_region, which =c(1,2))
 plot(model_without_region$residuals, model_without_region$fitted.values)
 plot(df_usa$state[1:561], resid(model_without_region))
+
 ```
 
 
@@ -301,8 +302,77 @@ model_with_region <- lm(Dvote ~ year + region + s1_bis + s2_bis + s3 + s5 + s4+ 
 summary(lmer(Dvote ~  n1 + n2 + n3 + n4 + (1| year) + evotes + s1 + s2 + r3 +r4 + r5 + (1| year:region) ,data = df_usa))
 #on enlève r1, r2 car correspond au South, et on enlève r6 car correspond au West donc va permettre de simplifier le modèle 
 #entre parenthèse devant un | : on dit qu'on accepte que le slope varie de manière random
+
+
+#quand on met (|var) on a des random intercept pour la variable de groupement, on autorise les observations de ce groupe à être corrélées 
+#si on met juste une variable comme d'habitude, c'est un prédicteur, qu'on considère comme un 'effet' fixe cad l'intercept et la pente de cette variable sont les mêmes dans tous les groupes  
+#(1|var1:var2) permet corrélations dans var1 et corrélations entre var2 au sein de var1
+#Interpreting the results of a mixed-effects model can be complex, but generally, you would look at the estimated coefficients for the fixed effects (i.e., the predictors) to determine their effect on the outcome variable, while taking into account the variation due to the random effects. You can also look at the estimated variance components for the random effects to see how much variation in the outcome variable is explained by each random effect.
+#include year as a random effect, to account for the fact that the intercepts vary across years
+#it's possible to allow the slope to vary across years by including an interaction term between the year variable and other predictor variables. This would allow the effect of the predictor variables on the outcome variable to vary by year.
+#Interpreting a varying slope across years means that the relationship between the predictor variables and the outcome variable changes over time. This could indicate that external factors such as social, economic, or political changes are affecting the relationship.
+#ranef() pour avoir les coefficients pour chaque level pour les random
+
+
+#maintenant on fait un vrai modèle 
+#year est random et region est random dans year
+#effet fixe état: car certains états ont des tendances, et on suppose que la pente ne varie pas entre états? c'est à dire que les états ont environ les mêmes évolutions d'opinion mais ne partent pas du même point ?
+df_usa %>% group_by(year, region) %>% summarise(number = Dvote) %>% ggplot(aes(x=year, y=number, color = region)) + geom_line()
+
+#evotes
+df_usa %>% group_by(year, region) %>% summarise(number = evotes) %>% ggplot(aes(x=year, y=number, color = region)) + geom_line()
+
+#n1 à n4 : sont identiques dans tous les états donc on met effet fixe
+
+#s1
+df_usa %>% group_by(year, region) %>% summarise(number = s1) %>% ggplot(aes(x=year, y=number, color = region)) + geom_boxplot() #globalement la même évolution mais pas les mêmes points de départ
+df_usa %>% group_by(year, state) %>% summarise(number = s1) %>% ggplot(aes(x=year, y=number, color = state)) + geom_line() 
+
+#s2 
+df_usa %>% group_by(year, region) %>% summarise(number = s2) %>% ggplot(aes(x=year, y=number, color = region)) + geom_line()#idem
+
+#s3 et s4 à part, à priori fixed effects
+
+#s5
+df_usa %>% group_by(year, region) %>% summarise(number = s5) %>% ggplot(aes(x=year, y=number, color = region)) + geom_line() #pas tout à fait les mêmes tendances 
+
+#s6
+df_usa %>% group_by(year, state) %>% summarise(number = s6) %>% ggplot(aes(x=year, y=number, color = state)) + geom_line()#globalement les mêmes évolutions donc cluster au niveau state
+
+#s7
+df_usa %>% group_by(year, region) %>% summarise(number = s7) %>% ggplot(aes(x=year, y=number, color = region)) + geom_line()#inutile
+
+#s8
+df_usa %>% group_by(year, region) %>% summarise(number = s8) %>% ggplot(aes(x=year, y=number, color = region)) + geom_line()#mm evolution dans les états
+
+#s9 
+df_usa %>% group_by(year, state) %>% summarise(number = s9) %>% ggplot(aes(x=year, y=number, color = state)) + geom_line() #inutile
+
+#r1 à r6 sont régionaux mais du coup on va en enlever une grosse partie car on le retrouve dans la variable région, on met le reste en fixed effects
+
+#récap
+library(lme4)
+library(lmerTest)
+final_model <- lmer(Dvote ~ (1|state) +  s1 + s2 + s3 + s4 + s7 + s8 + n1 + n4 + r3+ r4+ r5+ r6 + (1| year) +(s5|year:region), data = df_usa)
+summary(final_model)
+coef(final_model)
+ranef(final_model)
+plot(final_model)
+plot(df_usa$state[1:561], resid(final_model)) #no big difference
+plot(df_usa$year[1:561], resid(final_model))
+
+final_model_simplified <- lmer(Dvote ~ (1|state) +  s1 + s2 + s3 + s4 + s7 + s8 + n1  + n4 + (1| year) +(s5|year:region), data = df_usa)
+summary(final_model)
+coef(final_model)
+ranef(final_model)
+plot(final_model)
+plot(df_usa$state[1:561], resid(final_model_simplified))
+plot(df_usa$year[1:561], resid(final_model_simplified))
 ```
 
+
+
+## graphiques
 ```{r map}
 library(usmap)
 library(ggplot2)
@@ -453,3 +523,6 @@ df_usa %>%
 ```
 
 
+By denoting by t the time and r the region we have a model that can be expressed with the following equation : 
+
+$Y_{r,t} = W_{r}^{T}\beta + X_{t,r}^{T}\gamma + Z_{t}^{T}\delta + \epsilon_{r,t}$
