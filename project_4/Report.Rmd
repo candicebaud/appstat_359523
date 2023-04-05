@@ -1,0 +1,286 @@
+---
+title: "Report project 4"
+author: "Sciper 359523"
+date: "2023-04-03"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE)
+```
+
+```{r working directory and data, echo=FALSE, include=FALSE}
+lapply(c("dplyr","chron","ggplot2","tidyr","questionr","survival","forcats","tidyselect",
+         "data.table","table1","lubridate", "ggpubr","viridis","finalfit","survminer",
+         "ggpubr", "ggthemes", "gridExtra", "rstatix","stringr",
+         "wesanderson","kableExtra", "naniar","boot","scales","ggsci", "stringr",
+         "Hmisc","DescTools","swimplot", 'stats', 'EnvStats', 'finalfit'), 
+       library, character.only=TRUE)
+
+set.seed(435) #set the seed for reproducible results
+
+df_usa <- read.table('4_US_elections.txt', header=T)
+```
+
+
+# 1. Introduction
+The period between 1948 and 1992 was a tumultuous time in American politics, marked by significant changes and transformations. During these years, the United States went through some of its most challenging periods, including the Cold War, the civil rights movement, and the Vietnam War. The presidential elections during this period reflect the social and political changes that took place in the country. In 1948, incumbent President Harry S. Truman, a Democrat, was facing a divided party and a difficult re-election campaign. He managed to win the election but his second term was marked by the Korean War and efforts to contain communism around the world. The Korean War was then ended under the presidency of Eisenhower(1952). His successor, John F.Kennedy (1960) faced the Civil Rights Movement, the Bay of Pigs invasion, and the Cuban Missile Crisis, which brought the world to the brink of nuclear war. After Kennedy's death, Johnson who had replaced him was elected (1964) and his presidency was marked by the Vietnam War. In 1976, Democrat Jimmy Carter's presidency was marked by significant foreign policy challenges, including the Iranian Hostage Crisis and the Soviet invasion of Afghanistan. Republican Reagan's presidency (1980) was marked by the Reagan revolution and efforts towards ending the cold war, that was finally ended under Republican Bush's presidency (1988), also marked by the Gulf War. [1], [2]
+
+In this project, we explore the presidential elections of this era, focusing on the outcomes that shaped the political landscape of the United States. We want specifically to assess whether the elections outcome can be predicted by linear models. 
+
+To this end, after a brief introduction of the data-base features, we first build a 'naive' linear model in section 3 and then build a mixed model that we will show is more appropriate. Section 4 and 5 present the diagnostics of the model and a stability analysis respectively. In Section 6, we interpret and analyze the results, and finally, we conclude the work done and discuss potential improvements in Section 7.
+
+
+# 2. Data characteristics
+The data set consists of election results such as the outcome variable which corresponds to the party candidate’s share of the vote in the given state and year; but also nationwide variables such as poll results or economic growth (GDP). It also contains statewide variable concerning previous elections' results and indicators of state ideology and position towards the candidate. Finally, it contains regional variables accounting for southern states or New England indicator. 
+We include in this data set a variable that corresponds to the region divided in Northeast, South, Midwest and West, as well as a variable corresponding to the incumbent president's party (Democrat or Republican).  
+
+```{r tidy the data, echo=FALSE, include = FALSE}
+df_usa <- df_usa %>% mutate(
+  region = as.factor(case_when(
+    state == 7~ 'Northeast',
+    state == 8~'Northeast',
+    state == 19~ 'Northeast',
+    state == 20~ 'Northeast',
+    state == 21~ 'Northeast',
+    state == 29~ 'Northeast',
+    state == 30~ 'Northeast',
+    state == 32~ 'Northeast',
+    state == 38~ 'Northeast',
+    state == 39~ 'Northeast',
+    state == 45~ 'Northeast', 
+    state == 48~ 'Northeast',
+    state ==1 ~ 'South',
+    state ==4 ~ 'South', 
+    state ==9 ~ 'South',
+    state == 10 ~ 'South',
+    state == 17 ~ 'South',
+    state == 18 ~ 'South', 
+    state == 24 ~ 'South', 
+    state == 33 ~ 'South', 
+    state == 36 ~ 'South', 
+    state == 40 ~ 'South', 
+    state == 42 ~ 'South', 
+    state == 43 ~ 'South',
+    state == 46 ~ 'South',
+    state == 13 ~'Midwest', 
+    state == 14~'Midwest',
+    state == 15~'Midwest',
+    state == 16 ~'Midwest',
+    state == 22~'Midwest',
+    state == 23~'Midwest',
+    state == 25~'Midwest',
+    state == 27~'Midwest',
+    state == 34~'Midwest',
+    state == 35~'Midwest',
+    state == 41~'Midwest',
+    state == 49~'Midwest',
+    state == 2~'West',
+    state == 3~'West',
+    state == 5~'West',
+    state == 6~'West',
+    state == 11~'West',
+    state ==12~'West',
+    state == 26~'West',
+    state == 28~'West', 
+    state == 31~'West', 
+    state == 37~'West', 
+    state == 44~'West',
+    state == 47~'West',
+    state == 50~'West'
+  )))
+
+df_usa <- df_usa %>% mutate(
+  r2 = -r2,
+  r3 = -r3,
+  r6 = -r6,
+  year_fact = as.factor(year),
+  state = as.factor(state),
+  r1 = as.factor(r1),
+  r2 = as.factor(r2),
+  r3 = as.factor(r3),
+  r4 = as.factor(r4),
+  r5 = as.factor(r5),
+  r6 = as.factor(r6),
+  s3 = as.factor(s3),
+  s4 = as.factor(s4),
+  s1_bis = Dvote + s1,
+  s2_bis = Dvote + s2
+)
+
+df_usa <- df_usa %>% mutate(
+  president = as.factor(case_when(
+    n2 <0 ~ 'Republican',
+    n2>0 ~'Democrat'
+  ))
+)
+```
+
+
+
+```{r, fig.align="center", fig.cap="Figure 1: Democratic share of vote between 1948 and 1992"}
+library(usmap)
+library(plotly)
+library(shiny)
+library(dplyr)
+#library(plotusmap)
+
+df_usa_map <- df_usa %>% 
+  mutate(state = case_when(
+    state == '1' ~ 'Alabama',
+    state == '2' ~ 'Alaska',
+    state == '3' ~ 'Arizona',
+    state == '4' ~ 'Arkansas',
+    state == '5' ~ 'California',
+    state == '6' ~ 'Colorado',
+    state == '7' ~ 'Connecticut',
+    state == '8' ~ 'Delaware',
+    state == '9' ~ 'Florida',
+    state == '10' ~ 'Georgia',
+    state == '11' ~ 'Hawaii',
+    state == '12' ~ 'Idaho',
+    state == '13' ~ 'Illinois',
+    state == '14' ~ 'Indiana',
+    state == '15' ~ 'Iowa',
+    state == '16' ~ 'Kansas',
+    state == '17' ~ 'Kentucky',
+    state == '18' ~ 'Louisiana',
+    state == '19' ~ 'Maine',
+    state == '20' ~ 'Maryland',
+    state == '21' ~ 'Massachusetts',
+    state == '22' ~ 'Michigan',
+    state == '23' ~ 'Minnesota',
+    state == '24' ~ 'Mississippi',
+    state == '25' ~ 'Missouri',
+    state == '26' ~ 'Montana',
+    state == '27' ~ 'Nebraska',
+    state == '28' ~ 'Nevada',
+    state == '29' ~ 'New Hampshire',
+    state == '30' ~ 'New Jersey',
+    state == '31' ~ 'New Mexico',
+    state == '32' ~ 'New York',
+    state == '33' ~ 'North Carolina',
+    state == '34' ~ 'North Dakota',
+    state == '35' ~ 'Ohio',
+    state == '36' ~ 'Oklahoma',
+    state == '37' ~ 'Oregon',
+    state == '38' ~ 'Pennsylvania',
+    state == '39' ~ 'Rhode Island',
+    state == '40' ~ 'South Carolina',
+    state == '41' ~ 'South Dakota',
+    state == '42' ~ 'Tennessee',
+    state == '43' ~ 'Texas',
+    state == '44' ~ 'Utah',
+    state == '45' ~ 'Vermont',
+    state == '46' ~ 'Virginia',
+    state == '47' ~ 'Washington',
+    state == '48' ~ 'West Virginia',
+    state == '49' ~ 'Wisconsin',
+    state == '50' ~ 'Wyoming',
+    TRUE ~ 'Unknown'
+  ))
+
+
+# Create a list of years
+#df_usa_map <- df_usa_map %>% mutate(year = as.numeric(year))
+years <- unique(df_usa_map$year)
+
+# Define the UI for the Shiny app
+ui <- fluidPage(
+  titlePanel("Share of Democratic Votes by State"),
+  sidebarLayout(
+    sidebarPanel(
+      sliderInput("year", "Year", min = min(years), max = max(years), value = min(years), step = 4),
+      hr(),
+      helpText("Data from 1948 to 1992")
+    ),
+    mainPanel(
+      plotOutput("map")
+    )
+  )
+)
+
+# Define the server logic for the Shiny app
+server <- function(input, output) {
+  output$map <- renderPlot({
+    # Subset the data by the selected year
+    df_subset <- filter(df_usa_map, year == input$year)
+    
+    # Create the map 
+    plot_usmap(data = df_subset, values = "Dvote", color = "red") + 
+  scale_fill_continuous(
+    low = "white", high = "red", name = "Share of vote", label = scales::comma
+  ) + theme(legend.position = "right")
+  })
+}
+
+# Run the Shiny app
+shinyApp(ui, server)
+
+```
+
+*Figure 1* provides a comprehensive overview of the data set that we have at hand. The slider bar allows the reader to visualize the share of votes for the Democrats in each state over time between 1948 and 1992. The figure reveals that certain states such as New York consistently lean towards the Democratic party, while others are more ideologically diverse. Furthermore, the share of Democratic votes fluctuates substantially from year to year, with some years showing overwhelming support for the Democratic party and others revealing a more balanced distribution of votes.
+
+It is worth noting that the period between 1948 and 1992 was marked by numerous significant political events, including the Cold War, the Vietnam War, and the Gulf War. The diverse patterns of voting observed in *Figure 1* may reflect the shifting political landscape during this time period and the evolving attitudes of voters towards various political issues. 
+
+# 3. Linear model
+# 3.a Model building
+The first naive model built is the one containing all the variables of the data set. The output gives NA coefficients for several variables which indicates that there are linear relations between variables in the design matrix. 
+
+We do variable selection based on what seems the most plausible(TO REPHRASE). The variables n1, n2, n3 and n4 are not useful since they are nationwide variables. When we put them in the regression, the output is NA because they are correlated with the year variable, since they have an unique value for each state and each region when the year is fixed. 
+We also choose to discard the variable s9 which corresponds to the proportion of Catholics in 1960 compared to the US average because it is only useful regarding the 1960 election. We discard the variable that corresponds to the number of electors in a given state and year since the outcome variable is the Democratic party's share of vote in a given state and year. Finally, we discard the 'measure of state ideology' and 'ideological compatibility with candidates' because they are very wide and quite complicated to interpret.
+
+As a first regression we do not take into account the variable 'region' but we do take into account the variable 'state'. 
+
+```{r linear model, echo= FALSE, include = FALSE}
+model_without_region <- lm(Dvote ~ year + state + s1_bis + s2_bis + s3 + s5 + s4+ s6 + r1 + r2 + r3 + r4 + r5 + r6, data = df_usa)
+summary(model_without_region)
+```
+
+The output we obtain looks satisfactory since most variables are statistically significant under the 5% and 1% levels. 
+The associated coefficients with the different years are negative except for the year 1964, which corresponds to the year Democrat Lyndon B. Johnson was elected.
+The variables corresponding to the shares of votes during the last election and the before last election both have positive coefficients which means that having a greater democratic share of vote in the previous elections predicts an increase in the democratic share of votes of the incoming election. 
+The indicator variable of home state candidate is also associated with a positive and statistically significant coefficient at the 1% level, which means that the Democratic share of votes in a state will be greater if the Democratic candidate is from this state. However, the home state of the vice-president candidate does not seem to have an effect at all, since the coefficients are not statistically nor practically significant. 
+The state economic growth has a slightly positive effect on the Democratic share of vote. The variables associated with South, deep South, New England, or West are associated with respectively negative, positive and negative coefficients which means that southern states do not favor democratic candidates. 
+Finally, each state coefficient shows its overall ideology (more Republican or more Democrat). 
+
+
+# 3.b Diagnostics
+The linear model seems quite satisfactory because most variables are significant even below the 1% level and they have associated coefficients that seem plausible regarding US historical politics.
+The classical diagnostics presented in *Figure 2* are heteroskedastic and have a QQplot that gives confidence in the fitted model. 
+
+```{r, fig.align="center", fig.cap="Figure 2: Residuals diagnostics for the linear model"}
+par(mfrow=c(1,2))
+plot(model_without_region, which =c(1,2))
+```
+
+However, when looking at the residuals grouped by state in *Figure 3*, it appears clearly that those residuals are not heteroskedastic since they depend on the state. This is due to the fact that the linear model is not appropriate for this type of data. Indeed, there is clustering (or nesting) in the data, ie, there is a hierarchical structure in the data where individual observations are nested within higher-level units. There is a year effect as well as a region effect for each year. The linear model that was used here does not account for the clustering in the data, which leads to biased estimates and incorrect model. We build in the next section a mixed model that allows observations from the same year to be correlated and observations within the same year and the same region to be correlated even further. 
+```{r, fig.align="center", fig.cap="Figure 3: Residuals diagnostics grouped by state"}
+plot(df_usa$state[1:561], resid(model_without_region))
+```
+
+
+
+# 4. Mixed model
+We build in this section a mixed model to be able to account for the within-group correlation structure of the data by including random effects for each level of nesting. 
+
+
+
+
+
+
+By denoting by t the time and r the region we have a model that can be expressed with the following equation : 
+
+$Y_{r,t} = W_{r}^{T}\beta + X_{t,r}^{T}\gamma + Z_{t}^{T}\delta + \epsilon_{r,t}$
+
+
+# 5. Interpretation
+
+# 6. Discussion
+
+# 8. References
+
+[1] "The American Political Tradition and the Men Who Made It" by Richard Hofstadter (1948)
+
+[2] "America Divided: The Civil War of the 1960s" by Maurice Isserman and Michael Kazin (2009) 
