@@ -316,6 +316,8 @@ coef(final_model) #to have the coefficients of fixed effects
 ranef(final_model) #to have the coefficients of random effects
 plot(final_model) #too see the residuals
 plot(df_usa$state[1:561], resid(final_model))
+require("lattice")
+qqmath(final_model)
 ``` 
 
 
