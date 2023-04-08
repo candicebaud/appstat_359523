@@ -758,7 +758,7 @@ df_usa_map <- df_usa %>%
 df_usa_map <- df_usa_map %>% mutate(
   dem_rep = case_when(
     Dvote >=0.5 ~'Democrat',
-    TRUE ~ 'Republican'
+    Dvote <0.5 ~ 'Republican'
   )
 )
 
@@ -921,9 +921,9 @@ server <- function(input, output) {
     # Create the map 
     #plot_usmap(data = df_subset, values = "Dvote", color = "red") + 
   #scale_fill_continuous(low = "white", high = "red", name = "Share of vote", label = scales::comma) + theme(legend.position = "right")
-    plot_usmap(data = df_subset, values  = "Dvote", color = "white") +
+    plot_usmap(data = df_subset, values  = "Dvote", color = "black") +
   scale_fill_gradientn(name    = "Share of votes for the Democrats", 
-                       colours = c("#E81B23", "blue", "#1405bd"),
+                       colours = c("#E81B23", "white", "#1405bd"),
                        breaks  = c(0, 0.49, 1),
                        label   = scales::comma) +
   theme(legend.position = "right")

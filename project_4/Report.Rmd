@@ -179,7 +179,7 @@ df_usa_map <- df_usa %>%
 df_usa_map <- df_usa_map %>% mutate(
   dem_rep = case_when(
     Dvote >=0.5 ~'Democrat',
-    TRUE ~ 'Republican'
+    Dvote <0.5 ~ 'Republican'
   )
 )
 
@@ -192,9 +192,7 @@ df_usa_map <- df_usa_map %>% mutate(
 library(usmap)
 library(plotly)
 library(shiny)
-library(dplyr)
-#library(plotusmap)
-
+#library(dplyr)
 
 # Create a list of years
 #df_usa_map <- df_usa_map %>% mutate(year = as.numeric(year))
