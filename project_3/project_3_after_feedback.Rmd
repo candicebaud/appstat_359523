@@ -125,38 +125,40 @@ df_goals_all <- df_restr %>%
 
 
 ```{r, fig.align="center", fig.cap="Figure 1 : Difference between home goals and away goals"}
-graph<- df_restr %>% 
-  select(covid_y_n, date, home_goals, away_goals) %>% 
-  group_by(date, covid_y_n) %>% 
-  summarise(avg_home = mean(home_goals), avg_away = mean(away_goals)) %>%
-  mutate(avg_diff = avg_home - avg_away) 
+#home win percentage
+graph <- df_restr %>% mutate(year = year(date),month = month(date)) %>% group_by(year, month, team_status, win) %>% summarise(number=n()) %>% mutate(freq= number/sum(number))%>% mutate(
+  home_win = case_when(
+    team_status == 'HomeTeam' & win == 1 ~ 'Home win',
+  team_status == 'HomeTeam' & win == 0 ~ 'Away win',
+  team_status == 'AwayTeam' & win == 1 ~ 'Away win',
+  team_status == 'AwayTeam' & win == 0 ~ 'Home win',
+  win == 2 ~ 'Draw')) %>% group_by(year, month, home_win, freq) %>% summarise() %>%
+  mutate(test = paste(paste('01',month),year), Date = as.Date(test, format = "%d %m %Y")) %>%  
+  mutate(covid_before_after = as.factor(case_when(
+      Date >= "2020-03-12" & Date <= "2021-06-01"~ "In-covid",
+      Date <= "2020-03-12" ~"Pre-covid",
+      TRUE ~ "Post-covid")))
 
-graph %>% ggplot(aes(x=date, y=avg_diff)) + 
-  geom_line() + 
-  geom_hline(yintercept = mean((graph%>%filter(covid_y_n == 0))$avg_diff),linetype='dashed', col = 'red', show.legend = T)+
-  annotate("text", x=as.Date("2018-06-10", format = "%Y-%m-%d"), y=mean((graph%>%filter(covid_y_n == 0))$avg_diff) + 0.5, label="0.28", col = 'red') + 
-  annotate("text", x=as.Date("2018-06-10", format = "%Y-%m-%d"), y=mean((graph%>%filter(covid_y_n == 1))$avg_diff) - 0.5, label="0.03", col = 'blue') + 
-  geom_hline(yintercept = mean((graph%>%filter(covid_y_n == 1))$avg_diff), linetype = 'dashed', col = 'blue', show.legend = T)+
-  geom_rect(aes(xmin = as.Date("2020-03-12", format = "%Y-%m-%d"), xmax = as.Date("2021-06-01", format = "%Y-%m-%d"), ymin = -Inf, ymax = Inf), fill = "blue", alpha = 0.003) +
-  labs(x = 'Date', y = 'Average difference of goals', title = 'Difference between home goals and away goals')
+
+graph %>% ggplot(aes(x=Date, y=freq, color = home_win)) + geom_line() +
+  geom_rect(aes(xmin = as.Date("2020-03-12", format = "%Y-%m-%d"), xmax = as.Date("2021-06-01", format = "%Y-%m-%d"), ymin = -Inf, ymax = Inf), fill = "blue", alpha = 0.0025)+ 
+  labs(color = 'Match result') + 
+  geom_segment(aes(x=as.Date('2018-08-01', format = "%Y-%m-%d"), xend = as.Date("2020-03-12", format = "%Y-%m-%d"), y = mean((graph%>%filter(covid_before_after == 'Pre-covid' & home_win == 'Home win'))$freq), yend = mean((graph%>%filter(covid_before_after == 'Pre-covid' & home_win == 'Home win'))$freq)), linetype = 'dashed', col = 'blue') +
+geom_segment(aes(x=as.Date('2020-03-12', format = "%Y-%m-%d"), xend = as.Date("2021-06-01", format = "%Y-%m-%d"), y = mean((graph%>%filter(covid_before_after == 'In-covid' & home_win == 'Home win'))$freq), yend = mean((graph%>%filter(covid_before_after == 'In-covid' & home_win == 'Home win'))$freq)), linetype = 'dashed', col = 'blue') + 
+  geom_segment(aes(x=as.Date('2021-06-01', format = "%Y-%m-%d"), xend = as.Date("2022-05-01", format = "%Y-%m-%d"), y = mean((graph%>%filter(covid_before_after == 'Post-covid' & home_win == 'Home win'))$freq), yend = mean((graph%>%filter(covid_before_after == 'Post-covid' & home_win == 'Home win'))$freq)), linetype = 'dashed', col = 'blue') +
+  geom_segment(aes(x=as.Date('2018-08-01', format = "%Y-%m-%d"), xend = as.Date("2020-03-12", format = "%Y-%m-%d"), y = mean((graph%>%filter(covid_before_after == 'Pre-covid' & home_win == 'Draw'))$freq), yend = mean((graph%>%filter(covid_before_after == 'Pre-covid' & home_win == 'Draw'))$freq)), linetype = 'dashed', col = 'green') +
+geom_segment(aes(x=as.Date('2020-03-12', format = "%Y-%m-%d"), xend = as.Date("2021-06-01", format = "%Y-%m-%d"), y = mean((graph%>%filter(covid_before_after == 'In-covid' & home_win == 'Draw'))$freq), yend = mean((graph%>%filter(covid_before_after == 'In-covid' & home_win == 'Draw'))$freq)), linetype = 'dashed', col = 'green') + 
+  geom_segment(aes(x=as.Date('2021-06-01', format = "%Y-%m-%d"), xend = as.Date("2022-05-01", format = "%Y-%m-%d"), y = mean((graph%>%filter(covid_before_after == 'Post-covid' & home_win == 'Draw'))$freq), yend = mean((graph%>%filter(covid_before_after == 'Post-covid' & home_win == 'Draw'))$freq)), linetype = 'dashed', col = 'green') +
+  geom_segment(aes(x=as.Date('2018-08-01', format = "%Y-%m-%d"), xend = as.Date("2020-03-12", format = "%Y-%m-%d"), y = mean((graph%>%filter(covid_before_after == 'Pre-covid' & home_win == 'Away win'))$freq), yend = mean((graph%>%filter(covid_before_after == 'Pre-covid' & home_win == 'Away win'))$freq)), linetype = 'dashed', col = 'red') +
+geom_segment(aes(x=as.Date('2020-03-12', format = "%Y-%m-%d"), xend = as.Date("2021-06-01", format = "%Y-%m-%d"), y = mean((graph%>%filter(covid_before_after == 'In-covid' & home_win == 'Away win'))$freq), yend = mean((graph%>%filter(covid_before_after == 'In-covid' & home_win == 'Away win'))$freq)), linetype = 'dashed', col = 'red') + 
+  geom_segment(aes(x=as.Date('2021-06-01', format = "%Y-%m-%d"), xend = as.Date("2022-05-01", format = "%Y-%m-%d"), y = mean((graph%>%filter(covid_before_after == 'Post-covid' & home_win == 'Away win'))$freq), yend = mean((graph%>%filter(covid_before_after == 'Post-covid' & home_win == 'Away win'))$freq)), linetype = 'dashed', col = 'red') +
+  ylab('Frequency (%)') + xlab("Date") + ggtitle("Match results") +
+  annotate("text", x=as.Date("2020-09-12", format = "%Y-%m-%d"), y=0, label="Covid-19 period", col = 'blue') 
 
 
-#graph %>% ggplot(aes(x=date, y=avg_home), color = 'blue') + 
-  #geom_line(aes(x = date, y = avg_away), color = "red")+
-  #geom_line() + 
-  #geom_hline(yintercept = mean((graph%>%filter(covid_y_n == 0))$avg_away),linetype='dashed', col = 'red', show.legend = T)+
-  #annotate("text", x=as.Date("2018-06-10", format = "%Y-%m-%d"), y=mean((graph%>%filter(covid_y_n == 0))$avg_diff) + 0.5, label="0.28", col = 'red') + 
-  #annotate("text", x=as.Date("2018-06-10", format = "%Y-%m-%d"), y=mean((graph%>%filter(covid_y_n == 1))$avg_diff) - 0.5, label="0.03", col = 'blue') + 
-  #geom_hline(yintercept = mean((graph%>%filter(covid_y_n == 1))$avg_diff), linetype = 'dashed', col = 'blue', show.legend = T)+
-  #geom_rect(aes(xmin = as.Date("2020-03-12", format = "%Y-%m-%d"), xmax = as.Date("2021-06-01", format = "%Y-%m-%d"), ymin = -Inf, ymax = Inf), fill = "blue", alpha = 0.003) +
-  #labs(x = 'Date', y = 'Average difference of goals', title = 'Difference between home goals and away goals')
 
-#mean((graph%>%filter(covid_y_n == 0))$avg_diff)
-#mean((graph%>%filter(covid_y_n == 1))$avg_diff)
 ```
-*Figure1* illustrates the difference in goals between the home team and the away team over time. The red line represents its average when the matches are played with supporters, while the blue line represents its average restricted to the COVID-19 period. The blue zone highlights the period during the COVID-19 pandemic, when matches were played without spectators in attendance. This period is referred to as closed-doors matches. The figure provides insights into how the home advantage phenomenon might be affected by playing in empty stadiums compared to games where fans are present.
-
-The red line is clearly above zero and the corresponding mean is equal to 0.28, which means that in average when games are played with supporters, the home team scores 0.28 more goals than the away team. The blue line however that only takes in account the COVID-19 period is close to zero (0.03), which would mean that there is a very little or no effect in playing home rather than away when the stadiums are empty. 
+Figure 1 provides a visual representation of the distribution of home wins, away wins, and draws during three distinct periods: pre-covid, during-covid, and post-covid. The dashed lines represent the average percentage of each outcome for each period. The data shows that before and after the period of closed-door matches, the proportion of home wins significantly outweighed that of away wins. However, during the covid-19 period, the difference between home and away wins decreased, and there was even a slight preference for away teams. These findings suggest that the presence of supporters could play a significant role in a team's performance, as they are more likely to win when playing in front of a full stadium.
 
 In the next section, we model the data to gain a deeper understanding of the extent to which the home advantage persisted during the COVID-19 pandemic. As a first definition of home advantage, we primarily examine the impact of playing at home on a team's goal scoring ability with a poisson model. Secondly, we use the match results (win or loose) to build another poisson model. Our analysis aims to provide robust evidence on the impact of playing without fans and whether it affected the home advantage in the English Premier League.
 
