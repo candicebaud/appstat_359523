@@ -124,7 +124,7 @@ df_goals_all <- df_restr %>%
 ```
 
 
-```{r, fig.align="center", fig.cap="Figure 1 : Difference between home goals and away goals"}
+```{r, fig.align="center", fig.cap="Figure 1 : Match results according to the team status"}
 #home win percentage
 graph <- df_restr %>% mutate(year = year(date),month = month(date)) %>% group_by(year, month, team_status, win) %>% summarise(number=n()) %>% mutate(freq= number/sum(number))%>% mutate(
   home_win = case_when(
