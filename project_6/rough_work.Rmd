@@ -1,0 +1,357 @@
+---
+title: "rough work"
+author: "Sciper 359523"
+date: "2023-05-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r working directory and data, echo=FALSE, include=FALSE}
+lapply(c("dplyr","chron","ggplot2","tidyr","questionr","survival","forcats","tidyselect",
+         "data.table","table1","lubridate", "ggpubr","viridis","finalfit","survminer",
+         "ggpubr", "ggthemes", "gridExtra", "rstatix","stringr",
+         "wesanderson","kableExtra", "naniar","boot","scales","ggsci", "stringr",
+         "Hmisc","DescTools","swimplot", 'stats', 'EnvStats', 'finalfit'), 
+       library, character.only=TRUE)
+
+set.seed(435) #set the seed for reproducible results
+
+data <- read.csv('data.csv', header=T)
+data_2 <- read.csv('data_2.csv', header=T)
+```
+
+# Modify the data 
+
+```{r change the data to have per capita, echo=FALSE, include=FALSE}
+data <- data %>% mutate(
+  cases_per_capita = cases/popData2020,
+  deaths_per_capita = deaths/popData2020
+)
+
+data <- data %>% mutate(
+  dateRep = as.Date(dateRep, format = '%d/%m/%Y')
+)
+
+data <- data %>% mutate(
+  cumsum_cases_capita = cumsum(cases_per_capita),
+  log_cases_capita = log(cumsum_cases_capita),
+  cumsum_deaths_capita = cumsum(deaths_per_capita),
+  log_deaths_capita = log(cumsum_deaths_capita)
+)
+
+sum(is.na(data))/(sum(is.na(data)) + sum(!is.na(data))) #20% of missing data ... 
+
+library(pracma)
+#data$z <- with(data, interp1(dateRep, log_cases_capita, dateRep, "linear"))
+
+data%>% filter(continentExp == 'Europe') %>% ggplot(aes(x=dateRep, y=log_cases_capita, color = countriesAndTerritories)) + geom_line() #lots of missing values 
+
+sum(is.na((data%>%filter(countriesAndTerritories == 'France'))$log_cases_capita))/length((data%>%filter(countriesAndTerritories == 'France'))$log_cases_capita) #only missing data for france 
+
+gg_miss_fct(x = data, fct = countriesAndTerritories) #lots of countries with only missing data... 
+
+#plot((data%>%filter(countriesAndTerritories == 'France'))$dateRep, (data%>% filter(countriesAndTerritories == 'France'))$log_cases_capita)
+
+data$country <- data$countriesAndTerritories
+col = c('country', 'popData2020')
+data_restr <- data[,col]
+
+
+data_usa <- read.csv('data_usa.csv', header = T)
+
+```
+
+
+# Data 2 
+```{r change the data to have per capita, echo=FALSE}
+gg_miss_fct(x = data_2, fct = country) #no missing data except url
+
+unique(data_2$indicator)
+
+data_2_filtered <- data_2 %>% filter(indicator == "Daily hospital occupancy") %>% mutate(
+  date = as.Date(date, format = '%Y-%m-%d')
+)
+col = c('country', 'date', 'value')
+
+data_2_filtered <- data_2_filtered[, col]
+countries <- unique(data_2_filtered$country) #the countries we have 
+#gg_miss_fct(x = data_2_filtered, fct = country)#no more missing values 
+#unique((data_restr %>% filter(country %in% countries))$country)
+#data %>% filter(country %in% countries)%>% group_by(countriesAndTerritories, popData2020) %>% summarise()
+
+data_final <- data_2_filtered %>% mutate(
+  pop = case_when(
+    country == 'Austria' ~ 8901064,
+    country == 'Belgium' ~ 11522440,
+    country == 'Bulgaria' ~ 6951482,
+    country == 'Cyprus' ~ 888005,
+    country == 'Estonia' ~ 1328976,
+    country == 'France' ~ 67320216,
+    country == 'Ireland' ~ 4964440,
+    country == 'Liechtenstein' ~ 38747,
+    country == 'Lithuania' ~ 2794090,
+    country == 'Luxembourg' ~ 626108,
+    country == 'Netherlands' ~ 17407585,
+    country == 'Romania' ~ 19328838,
+    country == 'Slovakia' ~ 5457873,
+    country == 'Slovenia' ~ 2095861,
+    country == 'Spain' ~ 47332614 )
+)
+
+data_final <- data_final %>% mutate(
+  hosp_per_capita = value/pop,
+  cumsum_hosp_per_capita = cumsum(hosp_per_capita),
+  log_c_hosp_pc = log(cumsum_hosp_per_capita)
+)
+
+
+ggplot(data_final, aes(x=date, y = hosp_per_capita, color = country)) + geom_line() #pas mal pour un premier truc descriptif, noisy mais sympa
+
+ggplot(data_final, aes(x=date, y = log_c_hosp_pc, color = country)) + geom_line()#bcp moins lisible
+
+#sum(is.na(data_final)) 0 donc c cool
+col = c('country', 'date', 'hosp_per_capita')
+data_final <- data_final[,col]
+
+data_final_wide <- data_final %>%
+  pivot_wider(names_from = country, values_from = hosp_per_capita)
+matrix <- as.matrix(data_final_wide)
+
+locpoly(matrix[,2])
+
+
+svd(matrix)
+```
+# data usa 
+```{r data usa}
+#include the population and compute the infected per capita  
+#https://healthdata.gov/dataset/United-States-COVID-19-Cases-and-Deaths-by-State-o/hiyb-zgc2
+
+data_usa <- data_usa %>%
+  mutate(
+    pop = case_when(
+      state == 'AL' ~ 4903185,
+      state == 'AK' ~ 731545,
+      state == 'AZ' ~ 7278717,
+      state == 'AR' ~ 3017804,
+      state == 'CA' ~ 39538223,
+      state == 'CO' ~ 5787590,
+      state == 'CT' ~ 3565287,
+      state == 'DE' ~ 973764,
+      state == 'FL' ~ 21538187,
+      state == 'GA' ~ 10711908,
+      state == 'HI' ~ 1455271,
+      state == 'ID' ~ 1839106,
+      state == 'IL' ~ 12812508,
+      state == 'IN' ~ 6785528,
+      state == 'IA' ~ 3190369,
+      state == 'KS' ~ 2935000,
+      state == 'KY' ~ 4505836,
+      state == 'LA' ~ 4648794,
+      state == 'ME' ~ 1344212,
+      state == 'MD' ~ 6045680,
+      state == 'MA' ~ 6892503,
+      state == 'MI' ~ 9986857,
+      state == 'MN' ~ 5639632,
+      state == 'MS' ~ 2976149,
+      state == 'MO' ~ 6137428,
+      state == 'MT' ~ 1068778,
+      state == 'NE' ~ 1934408,
+      state == 'NV' ~ 3080156,
+      state == 'NH' ~ 1359711,
+      state == 'NJ' ~ 9288994,
+      state == 'NM' ~ 2117522,
+      state == 'NY' ~ 20215751,
+      state == 'NC' ~ 10488084,
+      state == 'ND' ~ 762062,
+      state == 'OH' ~ 11689100,
+      state == 'OK' ~ 39538223,
+      state == 'OR' ~ 4217737,
+      state == 'PA' ~ 12801989,
+      state == 'RI' ~ 1059361,
+      state == 'SC' ~ 5148714,
+      state == 'SD' ~ 884659,
+      state == 'TN' ~ 6833174,
+      state == 'TX' ~ 28995881,
+      state == 'UT' ~ 3205958,
+      state == 'VT' ~ 623989,
+      state == 'VA' ~ 8535519,
+      state == 'WA' ~ 7693612,
+      state == 'WV' ~ 1792147,
+      state == 'WI' ~ 5822434,
+      state == 'WY' ~ 578759
+    )
+  )
+
+data_usa <- data_usa %>% mutate(
+  cases_per_capita = conf_cases/pop,
+  deaths_per_capita = conf_death/pop,
+  c_cases_pc = cumsum(cases_per_capita),
+  c_deaths_pc = cumsum(deaths_per_capita),
+  log_c_cases_pc = log(c_cases_pc),
+  loc_c_deaths_pc = log(c_deaths_pc),
+  submission_date = as.Date(submission_date, format = '%d/%m/%Y')
+  
+)
+
+#add democratic support https://www.fec.gov/resources/cms-content/documents/federalelections2020_2.pdf, publicly available from the US Federal Election Commission website
+data_usa <- data_usa %>%
+  mutate(
+    dem_support = case_when(
+      state == 'AL' ~ 36.6,
+      state == 'AK' ~ 42.8,
+      state == 'AZ' ~ 49.4,
+      state == 'AR' ~ 34.8,
+      state == 'CA' ~ 63.5,
+      state == 'CO' ~ 55.4,
+      state == 'CT' ~ 59.3,
+      state == 'DE' ~ 58.8,
+      state == 'DC' ~ 92.0,
+      state == 'FL' ~ 47.9,
+      state == 'GA' ~ 49.5,
+      state == 'HI' ~ 63.7,
+      state == 'ID' ~ 33.1,
+      state == 'IL' ~ 57.4,
+      state == 'IN' ~ 41.0,
+      state == 'IA' ~ 45.0,
+      state == 'KS' ~ 41.6,
+      state == 'KY' ~ 36.2,
+      state == 'LA' ~ 39.9,
+      state == 'ME' ~ 53.1,
+      state == 'MD' ~ 65.4,
+      state == 'MA' ~ 65.6,
+      state == 'MI' ~ 50.6,
+      state == 'MN' ~ 52.4,
+      state == 'MS' ~ 39.1,
+      state == 'MO' ~ 41.4,
+      state == 'MT' ~ 40.6,
+      state == 'NE' ~ 39.1,
+      state == 'NV' ~ 50.1,
+      state == 'NH' ~ 52.7,
+      state == 'NJ' ~ 57.2,
+      state == 'NM' ~ 54.3,
+      state == 'NY' ~ 60.9,
+      state == 'NC' ~ 48.6,
+      state == 'ND' ~ 28.3,
+      state == 'OH' ~ 45.2,
+      state == 'OK' ~ 32.4,
+      state == 'OR' ~ 56.9,
+      state == 'PA' ~ 50.0,
+      state == 'RI' ~ 59.4,
+      state == 'SC' ~ 43.4,
+      state == 'SD' ~ 35.6,
+      state == 'TN' ~ 38.9,
+      state == 'TX' ~ 46.4,
+      state == 'UT' ~ 36.9,
+      state == 'VT' ~ 66.1,
+      state == 'VA' ~ 54.1,
+      state == 'WA' ~ 58.0,
+      state == 'WV' ~ 29.7,
+      state == 'WI' ~ 49.6,
+      state == 'WY' ~ 26.6
+    )
+  )
+
+
+
+sum(is.na(data_usa$dem_support)) #normal, on se fiche des états pas "américains" genre 
+
+not_usa_state <- c('PR', 'GU', 'RMI', 'AS', 'MP', 'VI', 'PW')
+
+data_usa <- subset(data_usa, !(data_usa$state %in% not_usa_state))
+
+data_usa %>% group_by(submission_date, state, tot_cases) %>% ggplot(aes(x=submission_date, y = cases_per_capita, color = state)) + geom_line()
+
+```
+
+
+
+
+# now we select the dataset : 
+# smoothing 
+```{r smoothing}
+library(stats)
+
+data_final_wider <- data_final %>%pivot_wider(names_from = country, values_from = hosp_per_capita) #pb 
+
+
+``` 
+
+
+# pca 
+```{r pca}
+library(fda)
+library(stats)
+library(fda.usc)
+
+col = c('submission_date', 'state', 'cases_per_capita')
+data_usa_restr = data_usa[col]
+data_usa_restr <- na.omit(data_usa_restr)
+
+data_wide <- data_usa_restr %>%
+  pivot_wider(names_from = state, values_from = cases_per_capita, values_fill = 0)
+
+
+
+
+
+library(fda)
+library(dplyr)
+library(tidyr)
+library(refund)
+
+# Load and preprocess data
+col <- c('submission_date', 'state', 'cases_per_capita', 'dem_support')
+data_usa_restr <- data_usa[col] %>% 
+  na.omit() %>% 
+  mutate(submission_date = as.Date(submission_date)) %>% 
+  arrange(submission_date)
+
+# Reshape data to wide format
+data_wide <- data_usa_restr %>% 
+  pivot_wider(names_from = state, values_from = cases_per_capita, values_fill = 0)
+
+# Create a functional data object
+data_fd <- subset(data_wide, select = -submission_date) %>% 
+  as.matrix() %>% 
+  fd() 
+
+# Perform registration
+#data_fd_reg <- data_fd %>% register() 
+
+# Perform functional PCA with svd
+pca <- svd(data_fd, nv = 3, method = "gram")
+scores <- pca$v %*% diag(pca$d)^0.5
+
+# Add state names to scores dataframe
+scores_df <- data.frame(scores) %>% 
+  rownames_to_column(var = "state") %>% 
+  select(state, everything())
+
+# Plot the scores for the first two components
+library(ggplot2)
+ggplot(scores_df, aes(x = PC1, y = PC2)) +
+  geom_point(aes(color = state), size = 3) +
+  scale_color_discrete(name = "State") +
+  xlab("PC1") +
+  ylab("PC2") +
+  ggtitle("Functional PCA of COVID-19 cases in the USA")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

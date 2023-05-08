@@ -1,0 +1,52 @@
+---
+title: "Project 6"
+author: "Sciper 359523"
+date: "2023-05-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r working directory and data, echo=FALSE, include=FALSE}
+lapply(c("dplyr","chron","ggplot2","tidyr","questionr","survival","forcats","tidyselect",
+         "data.table","table1","lubridate", "ggpubr","viridis","finalfit","survminer",
+         "ggpubr", "ggthemes", "gridExtra", "rstatix","stringr",
+         "wesanderson","kableExtra", "naniar","boot","scales","ggsci", "stringr",
+         "Hmisc","DescTools","swimplot", 'stats', 'EnvStats', 'finalfit'), 
+       library, character.only=TRUE)
+
+set.seed(435) #set the seed for reproducible results
+
+data <- read.csv('data.csv', header=T)
+data_2 <- read.csv('data_2.csv', header=T)
+```
+
+# 1. Introduction
+The covid-19 pandemic which started in December 2019 in Wuhan had a significant impact on the world, with over 160 million confirmed cases and 3.3 million deaths worldwide as of May 2023. The disease has been studied extensively in various fields, including epidemiology, medicine, and public health, and many models have been proposed. Some were based on theoretical models (SIR, SEIR, SEIRD...) and fitted to the data by estimating the models parameters. Another way of modelling the problem is to base the analysis on the data itself and not a general model, which has been proposed by Marc Lavielle [1], by detecting changing points in the derivative of the number of hospitalized patients, and then fitting polynomial regressions. In this project, we also want to build a model out of the data and will use functional pca, which can help identify important patterns of variation in functional data. Functional data is data that can be represented as curves or functions, such as time-series data or data from medical imaging. FPCA is used to identify the most important patterns of variation in functional data by decomposing the data into a set of orthogonal functions called principal components.
+
+The report is structured as follows. First, I explain the data collection and introduce its characteristics. Then, I perform functional pca on smoothed data using svd(). Finally, I interpret the results. 
+
+# 2. Data collection and characteristics 
+
+
+# 3. Functional PCA
+
+
+# 4. Interpretation 
+
+
+# 5. Discussion
+
+
+# 6. References 
+[1] "Using Hospital Data for Monitoring the
+Dynamics of COVID-19 in France", Marc Lavielle, INRIA, Ecole Polytechnique, published in Journal of data science, statistics and visualisation, Nov 2022
+
+
+
+
+
+
+
