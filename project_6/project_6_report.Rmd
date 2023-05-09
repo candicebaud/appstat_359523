@@ -44,7 +44,7 @@ set.seed(435) #set the seed for reproducible results
 
 #write.csv(df, "C:/Users/candi/Desktop/ETUDES/EPFL1A/semestre 2/applied statistics/applied_stat_359523/project_6\\data_processed.csv", row.names=FALSE)
 
-df <- read.csv('data_processed.csv', header = T)
+df <- read.csv('data_processed.csv', header = T) #data that is less big
 
 ```
 
