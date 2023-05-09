@@ -6,8 +6,9 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE)
 ```
+
 
 ```{r working directory and data, echo=FALSE, include=FALSE}
 lapply(c("dplyr","chron","ggplot2","tidyr","questionr","survival","forcats","tidyselect",
@@ -19,31 +20,99 @@ lapply(c("dplyr","chron","ggplot2","tidyr","questionr","survival","forcats","tid
 
 set.seed(435) #set the seed for reproducible results
 
-data <- read.csv('data.csv', header=T)
-data_2 <- read.csv('data_2.csv', header=T)
+data <- read.csv('owid-covid-data.csv', header = T)
+```
+
+```{r, echo = FALSE, include = FALSE}
+data <- data %>% filter(continent == 'Europe')
+
+gg_miss_fct(x = data, fct = location)#to see where data is missing 
+
+forbidden <- c('England', 'Scotland', 'Northern Ireland', 'Wales')
+data <- subset(data, !(data$location %in% forbidden))
+
+variables_to_keep <- c('location', 'date', 'total_cases', 'new_cases', 'total_cases_per_million', 'new_cases_per_million', 'stringency_index', 'population_density', 'median_age', 'aged_65_older', 'aged_70_older', 'gdp_per_capita', 'extreme_poverty', 'cardiovasc_death_rate', 'diabetes_prevalence', 'female_smokers', 'male_smokers', 'hospital_beds_per_thousand', 'life_expectancy', 'human_development_index', 'population', 'excess_mortality_cumulative_absolute', 'excess_mortality', 'excess_mortality_cumulative_per_million', 'excess_mortality_cumulative')
+
+df <- data[,variables_to_keep]
+gg_miss_fct(x = df, fct = location)
+
+#some countries still have lots of missing data so we don't take them 
+forbidden <- c('Andorra', 'Faeroe Islands', 'Gibraltar', 'Guernsey', 'Isle of Man', 'Jersey', 'Kosovo', 'Liechtenstein', 'Monaco', 'San Marino', 'Vatican')
+df <- subset(df, !(df$location %in% forbidden)) #the data is way better
+
+df <- df %>% mutate(
+  date = as.Date(date, format = "%Y-%m-%d")
+) 
+
 ```
 
 # 1. Introduction
 The covid-19 pandemic which started in December 2019 in Wuhan had a significant impact on the world, with over 160 million confirmed cases and 3.3 million deaths worldwide as of May 2023. The disease has been studied extensively in various fields, including epidemiology, medicine, and public health, and many models have been proposed. Some were based on theoretical models (SIR, SEIR, SEIRD...) and fitted to the data by estimating the models parameters. Another way of modelling the problem is to base the analysis on the data itself and not a general model, which has been proposed by Marc Lavielle [1], by detecting changing points in the derivative of the number of hospitalized patients, and then fitting polynomial regressions. In this project, we also want to build a model out of the data and will use functional pca, which can help identify important patterns of variation in functional data. Functional data is data that can be represented as curves or functions, such as time-series data or data from medical imaging. FPCA is used to identify the most important patterns of variation in functional data by decomposing the data into a set of orthogonal functions called principal components.
 
-The report is structured as follows. First, I explain the data collection and introduce its characteristics. Then, I perform functional pca on smoothed data using svd(). Finally, I interpret the results. 
+We will begin by introducing the data collection and its characteristics and then smooth it. Next, we will perform functional pca on the smoothed data using svd(). Finally, we will interpret the results.
 
 # 2. Data collection and characteristics 
+In this project, the data used was collected from the website 'OurWorldInData' [2], which compiles data on COVID-19 from the World Health Organization. I extracted the values from the original dataset corresponding to European countries with available COVID-19 data. The final dataset includes two categories of indicators: COVID-19 indicators and country characteristics. The COVID-19 indicators include the country, date, cumulative number of cases per million, and stringency index. The country characteristics include population, GDP per capita, and various health indicators, such as diabetes prevalence and the number of cardiovascular deaths. The full list of indicators, separated by category, is provided above for reference.
+
+##### Covid-19 indicators
+* Country
+* Date
+* Cumulative number of cases per million
+* Stringency index
+ 
+##### Countries characteristics
+* Demographic indicators(population, population density, median age, percentage of people older than 65 years old, and the percentage of people older than 70 years old, life expectancy, human development index)
+* Economic indicators(gdp per capita, extreme poverty proportion of people)
+* Health indicators (number of cardiovascular deaths, diabetes prevalence,excess mortality, share of smoking women/men)
+* Hospital beds per thousand
+
+One can visualize the evolution of the logarithm of the cumulated cases (per million) on *Figure 1*. 
 
 
-# 3. Functional PCA
+```{r, fig.align="center", fig.cap="Figure 1: Number of cases accross the different countries"}
+#df%>% ggplot(aes(x=date, y=total_cases, color=location)) + geom_line()
+#df%>% ggplot(aes(x=date, y=new_cases, color=location)) + geom_line()
+
+#df%>% ggplot(aes(x=date, y=total_cases_per_million, color=location)) + geom_line()
+
+#df%>% ggplot(aes(x=date, y=new_cases_per_million, color=location)) + geom_line()
+
+df <- df %>% mutate(
+  log_total_cases = log(total_cases),
+  log_total_cases_per_million = log(total_cases_per_million)
+)
+
+df%>% ggplot(aes(x=date, y=log_total_cases_per_million, color=location)) + geom_line() + xlab('date') + ylab('Log of the cumulated cases(per million)')
+
+``` 
+
+The cumulative number of cases for all European countries in the dataset are increasing since new cases are being added regularly. The shape of the curves is not linear, but rather appears to have wave tendencies. This is likely due to the waves of the pandemic and corresponding lockdown restrictions. Several studies have reported similar observations. For example, a study conducted by Pascual et al. (2021) [3] found that the pandemic spread in waves, with each wave potentially triggered by changes in human mobility or social behavior. The study also noted that the duration and amplitude of each wave varied across countries and regions. These findings suggest that the wave tendencies observed in the dataset may reflect broader patterns of pandemic spread and control.
+
+In *Figure 2*, when examining the daily new cases, a weekly trend is apparent with a decrease over the weekends and a subsequent increase on Mondays. This pattern is likely due to reporting delays and issues in hospitals during the weekend. However, this may pose challenges when conducting further analysis, such as principal component analysis (PCA), as the trend could introduce noise and distortions in the data. To mitigate this issue, we plan to smooth the curve using rolling means and kernel estimation techniques. Rolling means calculate the average value of a subset of adjacent data points, while kernel estimation fits a smooth curve to the data by applying a mathematical function to each point and its surrounding neighbors. These techniques can help us better capture the underlying trends in the data and remove any noise or distortions caused by the reporting delays.
+
+```{r, fig.align="center", fig.cap="Figure 2: Number of new cases accross the different countries"}
+df%>% ggplot(aes(x=date, y=new_cases_per_million, color=location)) + geom_line() + xlab('date') + ylab('New cases per million')
+```
+
+# 3. Smoothing 
 
 
-# 4. Interpretation 
+# 4. Functional PCA
 
 
-# 5. Discussion
+# 5. Interpretation 
 
 
-# 6. References 
+# 6. Discussion
+
+
+# 7. References 
 [1] "Using Hospital Data for Monitoring the
 Dynamics of COVID-19 in France", Marc Lavielle, INRIA, Ecole Polytechnique, published in Journal of data science, statistics and visualisation, Nov 2022
 
+[2]https://github.com/owid/covid-19-data/tree/master/public/data, https://ourworldindata.org/coronavirus
+
+[3] Pascual, M., Prieto-Santos, L. P., Borondo, J., & Hernandez-Garcia, E. (2021). COVID-19 pandemic waves: A spatiotemporal analysis of the propagation of the pandemic and the effect of containment policies. PLoS One, 16(7), e0254543. https://doi.org/10.1371/journal.pone.0254543
 
 
 

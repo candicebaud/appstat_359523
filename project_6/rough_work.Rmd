@@ -20,328 +20,190 @@ lapply(c("dplyr","chron","ggplot2","tidyr","questionr","survival","forcats","tid
 
 set.seed(435) #set the seed for reproducible results
 
-data <- read.csv('data.csv', header=T)
-data_2 <- read.csv('data_2.csv', header=T)
+#data <- read.csv('data.csv', header=T)
+#data_2 <- read.csv('data_2.csv', header=T)
+data <- read.csv('owid-covid-data.csv', header = T)
 ```
 
-# Modify the data 
 
-```{r change the data to have per capita, echo=FALSE, include=FALSE}
-data <- data %>% mutate(
-  cases_per_capita = cases/popData2020,
-  deaths_per_capita = deaths/popData2020
-)
+# modify the data 
+link : https://github.com/owid/covid-19-data/tree/master/public/data
+https://ourworldindata.org/coronavirus
 
-data <- data %>% mutate(
-  dateRep = as.Date(dateRep, format = '%d/%m/%Y')
-)
+```{r}
+data <- data %>% filter(continent == 'Europe')
 
-data <- data %>% mutate(
-  cumsum_cases_capita = cumsum(cases_per_capita),
-  log_cases_capita = log(cumsum_cases_capita),
-  cumsum_deaths_capita = cumsum(deaths_per_capita),
-  log_deaths_capita = log(cumsum_deaths_capita)
-)
+gg_miss_fct(x = data, fct = location)#to see where data is missing 
 
-sum(is.na(data))/(sum(is.na(data)) + sum(!is.na(data))) #20% of missing data ... 
+forbidden <- c('England', 'Scotland', 'Northern Ireland', 'Wales')
+data <- subset(data, !(data$location %in% forbidden))
 
-library(pracma)
-#data$z <- with(data, interp1(dateRep, log_cases_capita, dateRep, "linear"))
+variables_to_keep <- c('location', 'date', 'total_cases', 'new_cases', 'total_cases_per_million', 'new_cases_per_million', 'stringency_index', 'population_density', 'median_age', 'aged_65_older', 'aged_70_older', 'gdp_per_capita', 'extreme_poverty', 'cardiovasc_death_rate', 'diabetes_prevalence', 'female_smokers', 'male_smokers', 'hospital_beds_per_thousand', 'life_expectancy', 'human_development_index', 'population', 'excess_mortality_cumulative_absolute', 'excess_mortality', 'excess_mortality_cumulative_per_million', 'excess_mortality_cumulative')
 
-data%>% filter(continentExp == 'Europe') %>% ggplot(aes(x=dateRep, y=log_cases_capita, color = countriesAndTerritories)) + geom_line() #lots of missing values 
+df <- data[,variables_to_keep]
+gg_miss_fct(x = df, fct = location)
 
-sum(is.na((data%>%filter(countriesAndTerritories == 'France'))$log_cases_capita))/length((data%>%filter(countriesAndTerritories == 'France'))$log_cases_capita) #only missing data for france 
+#some countries still have lots of missing data so we don't take them 
+forbidden <- c('Andorra', 'Faeroe Islands', 'Gibraltar', 'Guernsey', 'Isle of Man', 'Jersey', 'Kosovo', 'Liechtenstein', 'Monaco', 'San Marino', 'Vatican')
+df <- subset(df, !(df$location %in% forbidden)) #the data is way better
 
-gg_miss_fct(x = data, fct = countriesAndTerritories) #lots of countries with only missing data... 
-
-#plot((data%>%filter(countriesAndTerritories == 'France'))$dateRep, (data%>% filter(countriesAndTerritories == 'France'))$log_cases_capita)
-
-data$country <- data$countriesAndTerritories
-col = c('country', 'popData2020')
-data_restr <- data[,col]
-
-
-data_usa <- read.csv('data_usa.csv', header = T)
+df <- df %>% mutate(
+  date = as.Date(date, format = "%Y-%m-%d")
+) 
 
 ```
 
 
-# Data 2 
-```{r change the data to have per capita, echo=FALSE}
-gg_miss_fct(x = data_2, fct = country) #no missing data except url
+# descriptive statistics 
+visualisation des cas 
+```{r}
+df%>% ggplot(aes(x=date, y=total_cases, color=location)) + geom_line()
 
-unique(data_2$indicator)
+df%>% ggplot(aes(x=date, y=new_cases, color=location)) + geom_line()
 
-data_2_filtered <- data_2 %>% filter(indicator == "Daily hospital occupancy") %>% mutate(
-  date = as.Date(date, format = '%Y-%m-%d')
-)
-col = c('country', 'date', 'value')
+df%>% ggplot(aes(x=date, y=total_cases_per_million, color=location)) + geom_line()
 
-data_2_filtered <- data_2_filtered[, col]
-countries <- unique(data_2_filtered$country) #the countries we have 
-#gg_miss_fct(x = data_2_filtered, fct = country)#no more missing values 
-#unique((data_restr %>% filter(country %in% countries))$country)
-#data %>% filter(country %in% countries)%>% group_by(countriesAndTerritories, popData2020) %>% summarise()
+df%>% ggplot(aes(x=date, y=new_cases_per_million, color=location)) + geom_line()
 
-data_final <- data_2_filtered %>% mutate(
-  pop = case_when(
-    country == 'Austria' ~ 8901064,
-    country == 'Belgium' ~ 11522440,
-    country == 'Bulgaria' ~ 6951482,
-    country == 'Cyprus' ~ 888005,
-    country == 'Estonia' ~ 1328976,
-    country == 'France' ~ 67320216,
-    country == 'Ireland' ~ 4964440,
-    country == 'Liechtenstein' ~ 38747,
-    country == 'Lithuania' ~ 2794090,
-    country == 'Luxembourg' ~ 626108,
-    country == 'Netherlands' ~ 17407585,
-    country == 'Romania' ~ 19328838,
-    country == 'Slovakia' ~ 5457873,
-    country == 'Slovenia' ~ 2095861,
-    country == 'Spain' ~ 47332614 )
+df <- df %>% mutate(
+  log_total_cases = log(total_cases),
+  log_total_cases_per_million = log(total_cases_per_million)
 )
 
-data_final <- data_final %>% mutate(
-  hosp_per_capita = value/pop,
-  cumsum_hosp_per_capita = cumsum(hosp_per_capita),
-  log_c_hosp_pc = log(cumsum_hosp_per_capita)
+df%>% ggplot(aes(x=date, y=log_total_cases_per_million, color=location)) + geom_line()
+``` 
+
+# smoothing with rolling mean
+rolling mean of 7 (weekly reporting pb)
+```{r}
+library(cowplot)
+library(zoo)
+#roll <- rollmean(df$log_total_cases_per_million, k=7, align = 'right', fill = NA)
+
+df <- df %>% mutate(
+  roll_log_cases_per_million = rollmean(log_total_cases_per_million, k=7, align = 'right', fill = NA),
+  roll_new_cases_per_million = rollmean(new_cases_per_million, k=7, align = 'right', fill = NA)
 )
 
+df%>% ggplot(aes(x=date, y=roll_log_cases_per_million, color=location)) + geom_line()
 
-ggplot(data_final, aes(x=date, y = hosp_per_capita, color = country)) + geom_line() #pas mal pour un premier truc descriptif, noisy mais sympa
-
-ggplot(data_final, aes(x=date, y = log_c_hosp_pc, color = country)) + geom_line()#bcp moins lisible
-
-#sum(is.na(data_final)) 0 donc c cool
-col = c('country', 'date', 'hosp_per_capita')
-data_final <- data_final[,col]
-
-data_final_wide <- data_final %>%
-  pivot_wider(names_from = country, values_from = hosp_per_capita)
-matrix <- as.matrix(data_final_wide)
-
-locpoly(matrix[,2])
-
-
-svd(matrix)
+df%>% ggplot(aes(x=date, y=roll_new_cases_per_million, color=location)) + geom_line()
 ```
-# data usa 
-```{r data usa}
-#include the population and compute the infected per capita  
-#https://healthdata.gov/dataset/United-States-COVID-19-Cases-and-Deaths-by-State-o/hiyb-zgc2
-
-data_usa <- data_usa %>%
-  mutate(
-    pop = case_when(
-      state == 'AL' ~ 4903185,
-      state == 'AK' ~ 731545,
-      state == 'AZ' ~ 7278717,
-      state == 'AR' ~ 3017804,
-      state == 'CA' ~ 39538223,
-      state == 'CO' ~ 5787590,
-      state == 'CT' ~ 3565287,
-      state == 'DE' ~ 973764,
-      state == 'FL' ~ 21538187,
-      state == 'GA' ~ 10711908,
-      state == 'HI' ~ 1455271,
-      state == 'ID' ~ 1839106,
-      state == 'IL' ~ 12812508,
-      state == 'IN' ~ 6785528,
-      state == 'IA' ~ 3190369,
-      state == 'KS' ~ 2935000,
-      state == 'KY' ~ 4505836,
-      state == 'LA' ~ 4648794,
-      state == 'ME' ~ 1344212,
-      state == 'MD' ~ 6045680,
-      state == 'MA' ~ 6892503,
-      state == 'MI' ~ 9986857,
-      state == 'MN' ~ 5639632,
-      state == 'MS' ~ 2976149,
-      state == 'MO' ~ 6137428,
-      state == 'MT' ~ 1068778,
-      state == 'NE' ~ 1934408,
-      state == 'NV' ~ 3080156,
-      state == 'NH' ~ 1359711,
-      state == 'NJ' ~ 9288994,
-      state == 'NM' ~ 2117522,
-      state == 'NY' ~ 20215751,
-      state == 'NC' ~ 10488084,
-      state == 'ND' ~ 762062,
-      state == 'OH' ~ 11689100,
-      state == 'OK' ~ 39538223,
-      state == 'OR' ~ 4217737,
-      state == 'PA' ~ 12801989,
-      state == 'RI' ~ 1059361,
-      state == 'SC' ~ 5148714,
-      state == 'SD' ~ 884659,
-      state == 'TN' ~ 6833174,
-      state == 'TX' ~ 28995881,
-      state == 'UT' ~ 3205958,
-      state == 'VT' ~ 623989,
-      state == 'VA' ~ 8535519,
-      state == 'WA' ~ 7693612,
-      state == 'WV' ~ 1792147,
-      state == 'WI' ~ 5822434,
-      state == 'WY' ~ 578759
-    )
-  )
-
-data_usa <- data_usa %>% mutate(
-  cases_per_capita = conf_cases/pop,
-  deaths_per_capita = conf_death/pop,
-  c_cases_pc = cumsum(cases_per_capita),
-  c_deaths_pc = cumsum(deaths_per_capita),
-  log_c_cases_pc = log(c_cases_pc),
-  loc_c_deaths_pc = log(c_deaths_pc),
-  submission_date = as.Date(submission_date, format = '%d/%m/%Y')
-  
-)
-
-#add democratic support https://www.fec.gov/resources/cms-content/documents/federalelections2020_2.pdf, publicly available from the US Federal Election Commission website
-data_usa <- data_usa %>%
-  mutate(
-    dem_support = case_when(
-      state == 'AL' ~ 36.6,
-      state == 'AK' ~ 42.8,
-      state == 'AZ' ~ 49.4,
-      state == 'AR' ~ 34.8,
-      state == 'CA' ~ 63.5,
-      state == 'CO' ~ 55.4,
-      state == 'CT' ~ 59.3,
-      state == 'DE' ~ 58.8,
-      state == 'DC' ~ 92.0,
-      state == 'FL' ~ 47.9,
-      state == 'GA' ~ 49.5,
-      state == 'HI' ~ 63.7,
-      state == 'ID' ~ 33.1,
-      state == 'IL' ~ 57.4,
-      state == 'IN' ~ 41.0,
-      state == 'IA' ~ 45.0,
-      state == 'KS' ~ 41.6,
-      state == 'KY' ~ 36.2,
-      state == 'LA' ~ 39.9,
-      state == 'ME' ~ 53.1,
-      state == 'MD' ~ 65.4,
-      state == 'MA' ~ 65.6,
-      state == 'MI' ~ 50.6,
-      state == 'MN' ~ 52.4,
-      state == 'MS' ~ 39.1,
-      state == 'MO' ~ 41.4,
-      state == 'MT' ~ 40.6,
-      state == 'NE' ~ 39.1,
-      state == 'NV' ~ 50.1,
-      state == 'NH' ~ 52.7,
-      state == 'NJ' ~ 57.2,
-      state == 'NM' ~ 54.3,
-      state == 'NY' ~ 60.9,
-      state == 'NC' ~ 48.6,
-      state == 'ND' ~ 28.3,
-      state == 'OH' ~ 45.2,
-      state == 'OK' ~ 32.4,
-      state == 'OR' ~ 56.9,
-      state == 'PA' ~ 50.0,
-      state == 'RI' ~ 59.4,
-      state == 'SC' ~ 43.4,
-      state == 'SD' ~ 35.6,
-      state == 'TN' ~ 38.9,
-      state == 'TX' ~ 46.4,
-      state == 'UT' ~ 36.9,
-      state == 'VT' ~ 66.1,
-      state == 'VA' ~ 54.1,
-      state == 'WA' ~ 58.0,
-      state == 'WV' ~ 29.7,
-      state == 'WI' ~ 49.6,
-      state == 'WY' ~ 26.6
-    )
-  )
 
 
+# smoothing with kernel 
+bandwith of 7 since we know there were problems in cases reporting during the week-ends, so we smooth over this window
+```{r}
+countries <- unique(df$location)
 
-sum(is.na(data_usa$dem_support)) #normal, on se fiche des états pas "américains" genre 
+#calcule le smoothed pour chaque 
+test <- df %>% filter(location == countries[1])
+smoothed = ksmooth(test$date, test$total_cases_per_million, bandwidth = 7)
+test$smoothed_cases_per_million <- smoothed$y
+smoothed = ksmooth(test$date, test$log_total_cases_per_million, bandwidth = 7)
+test$log_smoothed_cases_per_million <- smoothed$y
+data_frame <- test
 
-not_usa_state <- c('PR', 'GU', 'RMI', 'AS', 'MP', 'VI', 'PW')
+countries <- countries[2:length(countries)]
 
-data_usa <- subset(data_usa, !(data_usa$state %in% not_usa_state))
+for (country in countries){
+  test <- df %>% filter(location == country)
+  smoothed = ksmooth(test$date, test$total_cases, bandwidth = 7)
+  test$smoothed_cases_per_million <- smoothed$y
+  smoothed = ksmooth(test$date, test$log_total_cases_per_million, bandwidth = 7)
+  test$log_smoothed_cases_per_million <- smoothed$y
+  data_frame <- bind_rows(data_frame,test)
+}
 
-data_usa %>% group_by(submission_date, state, tot_cases) %>% ggplot(aes(x=submission_date, y = cases_per_capita, color = state)) + geom_line()
+data_frame%>% ggplot(aes(x=date, y=smoothed_cases_per_million, color=location)) + geom_line()
+
+data_frame%>% ggplot(aes(x=date, y=log_smoothed_cases_per_million, color=location)) + geom_line()
 
 ```
 
 
+# PCA avec juste les pays, pas de variable en plus, et pas de registration 
+on fait un dataset 
+```{r}
+col = c('date', 'log_smoothed_cases_per_million', 'location')
+data_pca <- data_frame[,col]
+data_pca <- pivot_wider(data_pca, names_from = location, values_from = log_smoothed_cases_per_million)
+gg_miss_fct(x = data_pca, fct = date) #on a un intervalle sans données manquantes 
+
+#on enlève les données manquantes
+data_pca <- na.omit(data_pca)
+data_pca <- data_pca[,2:41]
+
+matrix_pca <- data.matrix(data_pca)
+```
 
 
-# now we select the dataset : 
-# smoothing 
-```{r smoothing}
-library(stats)
+pca
 
-data_final_wider <- data_final %>%pivot_wider(names_from = country, values_from = hosp_per_capita) #pb 
 
+```{r}
+X = t(matrix_pca)
+
+mu <- colMeans(X)
+X <- sweep(X,2,mu)
+
+SVD <- svd(X)
+Scores <- SVD$u %*% diag(SVD$d)
+Loadings <- SVD$v
+FVE <- SVD$d^2/sum(SVD$d^2)
+
+par(mfrow = c(3,2))
+
+plot(X[1,]+mu,type="l", ylim=range(X+mu), main="Data and the mean")
+for(n in 1:dim(X)[1]) points(X[n,]+mu,type="l")
+  points(mu,col=2,lwd=2,type="l")
+
+plot(Scores[1,]*sign(sum(Loadings[,1])), Scores[2,]*sign(sum(Loadings[,2])), main="1st vs 2nd PC scores")
+
+
+plot(Loadings[,1]*sign(sum(Loadings[,1])),type="l", main=paste0("1st PC (",round(100*FVE[1])," % of var)"))
+
+plot(Loadings[,2]*sign(sum(Loadings[,2])),type="l", main=paste0("2nd PC (",round(100*FVE[2])," % of var)"))
+plot(Loadings[,3]*sign(sum(Loadings[,3])),type="l", main=paste0("3rd PC (",round(100*FVE[3])," % of var)"))
+plot(Loadings[,4]*sign(sum(Loadings[,4])),type="l", main=paste0("4th PC (",round(100*FVE[4])," % of var)"))
+
+
+#plot(matrix_pca[,1],type="l")
+#for(n in 2:10) points(matrix_pca[,n],type="l",col=n,lty=n%%6+1)
+#mu <- colMeans(t(matrix_pca[,1:41]))
+#points(mu, type="l", lwd=3)
+#legend("topleft", legend="mean curve", lwd=3)
 
 ``` 
 
 
-# pca 
-```{r pca}
-library(fda)
-library(stats)
-library(fda.usc)
-
-col = c('submission_date', 'state', 'cases_per_capita')
-data_usa_restr = data_usa[col]
-data_usa_restr <- na.omit(data_usa_restr)
-
-data_wide <- data_usa_restr %>%
-  pivot_wider(names_from = state, values_from = cases_per_capita, values_fill = 0)
+# Ajout de registration et d'autres variables ? 
 
 
 
 
 
-library(fda)
-library(dplyr)
-library(tidyr)
-library(refund)
 
-# Load and preprocess data
-col <- c('submission_date', 'state', 'cases_per_capita', 'dem_support')
-data_usa_restr <- data_usa[col] %>% 
-  na.omit() %>% 
-  mutate(submission_date = as.Date(submission_date)) %>% 
-  arrange(submission_date)
 
-# Reshape data to wide format
-data_wide <- data_usa_restr %>% 
-  pivot_wider(names_from = state, values_from = cases_per_capita, values_fill = 0)
 
-# Create a functional data object
-data_fd <- subset(data_wide, select = -submission_date) %>% 
-  as.matrix() %>% 
-  fd() 
 
-# Perform registration
-#data_fd_reg <- data_fd %>% register() 
 
-# Perform functional PCA with svd
-pca <- svd(data_fd, nv = 3, method = "gram")
-scores <- pca$v %*% diag(pca$d)^0.5
 
-# Add state names to scores dataframe
-scores_df <- data.frame(scores) %>% 
-  rownames_to_column(var = "state") %>% 
-  select(state, everything())
 
-# Plot the scores for the first two components
-library(ggplot2)
-ggplot(scores_df, aes(x = PC1, y = PC2)) +
-  geom_point(aes(color = state), size = 3) +
-  scale_color_discrete(name = "State") +
-  xlab("PC1") +
-  ylab("PC2") +
-  ggtitle("Functional PCA of COVID-19 cases in the USA")
 
-```
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
