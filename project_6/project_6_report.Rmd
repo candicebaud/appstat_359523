@@ -97,7 +97,10 @@ df%>% ggplot(aes(x=date, y=new_cases_per_million, color=location)) + geom_line()
 ```
 
 # 3. Smoothing 
+## Rollmean
 
+
+## Kernel
 
 # 4. Functional PCA
 
