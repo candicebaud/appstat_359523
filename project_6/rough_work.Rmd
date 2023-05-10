@@ -179,12 +179,63 @@ plot(Loadings[,4]*sign(sum(Loadings[,4])),type="l", main=paste0("4th PC (",round
 
 # Ajout d'autres variables ? 
 
+```{r}
+#data_pca
+#en ajoutant par ex le gdp per capita 
+col = c('location', 'gdp_per_capita')
+new_data <- data_frame[,col]
+new_data <- new_data%>%group_by(location, gdp_per_capita) %>%summarise()
+
+matrix_test <- t(data.frame(t(new_data)[2,]))
+row.names(matrix_test) <- ('gdp_per_capita')
+colnames(matrix_test) <- t(new_data)[1,]
+
+matrix_test <- data.frame(matrix_test)
+matrix_test <- data.frame(lapply(matrix_test,as.numeric))
+colnames(matrix_test) <- names(data_pca)
+
+data_pca_gdp <- bind_rows(data_pca, matrix_test)
+
+
+```
 
 
 
 
+```{r}
+X = t(data_pca_gdp)
+
+mu <- colMeans(X)
+X <- sweep(X,2,mu)
+
+SVD <- svd(X)
+Scores <- SVD$u %*% diag(SVD$d)
+Loadings <- SVD$v
+FVE <- SVD$d^2/sum(SVD$d^2)
+
+par(mfrow = c(3,2))
+
+plot(X[1,]+mu,type="l", ylim=range(X+mu), main="Data and the mean")
+for(n in 1:dim(X)[1]) points(X[n,]+mu,type="l")
+  points(mu,col=2,lwd=2,type="l")
+
+plot(Scores[1,]*sign(sum(Loadings[,1])), Scores[2,]*sign(sum(Loadings[,2])), main="1st vs 2nd PC scores")
 
 
+plot(Loadings[,1]*sign(sum(Loadings[,1])),type="l", main=paste0("1st PC (",round(100*FVE[1])," % of var)"))
+
+plot(Loadings[,2]*sign(sum(Loadings[,2])),type="l", main=paste0("2nd PC (",round(100*FVE[2])," % of var)"))
+plot(Loadings[,3]*sign(sum(Loadings[,3])),type="l", main=paste0("3rd PC (",round(100*FVE[3])," % of var)"))
+plot(Loadings[,4]*sign(sum(Loadings[,4])),type="l", main=paste0("4th PC (",round(100*FVE[4])," % of var)"))
+
+
+#plot(matrix_pca[,1],type="l")
+#for(n in 2:10) points(matrix_pca[,n],type="l",col=n,lty=n%%6+1)
+#mu <- colMeans(t(matrix_pca[,1:41]))
+#points(mu, type="l", lwd=3)
+#legend("topleft", legend="mean curve", lwd=3)
+
+``` 
 
 
 
