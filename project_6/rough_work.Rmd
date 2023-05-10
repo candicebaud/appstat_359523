@@ -177,7 +177,7 @@ plot(Loadings[,4]*sign(sum(Loadings[,4])),type="l", main=paste0("4th PC (",round
 ``` 
 
 
-# Ajout de registration et d'autres variables ? 
+# Ajout d'autres variables ? 
 
 
 
