@@ -197,13 +197,33 @@ colnames(matrix_test) <- names(data_pca)
 data_pca_gdp <- bind_rows(data_pca, matrix_test)
 
 
+
+
+
+#en ajoutant plusieurs variables 
+col = c('location', 'gdp_per_capita', 'median_age', 'female_smokers')
+new_data <- data_frame[,col]
+new_data <- new_data%>%group_by(location, gdp_per_capita, median_age, female_smokers) %>%summarise()
+
+matrix_test <- t(data.frame(t(new_data)[2,], t(new_data)[3,], t(new_data)[4,]))
+row.names(matrix_test) <- c('gdp_per_capita', 'median_age', 'female_smokers')
+colnames(matrix_test) <- t(new_data)[1,]
+
+matrix_test <- data.frame(matrix_test)
+matrix_test <- data.frame(lapply(matrix_test,as.numeric))
+colnames(matrix_test) <- names(data_pca)
+
+data_pca_new <- bind_rows(data_pca, matrix_test)
+
+data_pca_new <- na.omit(data_pca_new)
+
 ```
 
 
 
 
 ```{r}
-X = t(data_pca_gdp)
+X = t(data_pca_new)
 
 mu <- colMeans(X)
 X <- sweep(X,2,mu)
