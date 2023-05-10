@@ -261,7 +261,59 @@ plot(Loadings[,4]*sign(sum(Loadings[,4])),type="l", main=paste0("4th PC (",round
 
 
 
+# with functional data  ? 
+```{r}
+library(fda)
+data_pca$time <- seq(1,length(data_pca$Albania), by = 1)
 
+tim_span = 1.5*length(data_pca$Albania)
+time = sort(runif(length(data_pca$Albania),0,time_span))
+times_basis = seq(0,time_span,1)
+knots    = c(seq(0,time_span,5))
+n_knots   = length(knots)
+n_order   = 4
+n_basis   = length(knots) + n_order - 2
+basis = create.bspline.basis(c(min(times_basis),max(times_basis)),n_basis,n_order,knots)
+n_basis
+PHI = eval.basis(time, basis) 
+dim(PHI)
+matplot(time,PHI,type='l',lwd=1,lty=1, xlab='time',ylab='basis',cex.lab=1,cex.axis=1)
+for (i in 1:n_knots)
+{
+  abline(v=knots[i], lty=2, lwd=1)
+}
+
+
+M = ginv(t(PHI) %*% PHI) %*% t(PHI)
+c_hat = M %*% data.matrix(data_pca)
+y_hat = PHI %*% c_hat
+
+
+#and then we do pca ? 
+X = t(y_hat)
+
+mu <- colMeans(X)
+X <- sweep(X,2,mu)
+
+SVD <- svd(X)
+Scores <- SVD$u %*% diag(SVD$d)
+Loadings <- SVD$v
+FVE <- SVD$d^2/sum(SVD$d^2)
+
+par(mfrow = c(3,2))
+
+plot(X[1,]+mu,type="l", ylim=range(X+mu), main="Data and the mean")
+for(n in 1:dim(X)[1]) points(X[n,]+mu,type="l")
+  points(mu,col=2,lwd=2,type="l")
+
+plot(Scores[1,]*sign(sum(Loadings[,1])), Scores[2,]*sign(sum(Loadings[,2])), main="1st vs 2nd PC scores")
+
+
+plot(Loadings[,1]*sign(sum(Loadings[,1])),type="l", main=paste0("1st PC (",round(100*FVE[1])," % of var)"))
+plot(Loadings[,2]*sign(sum(Loadings[,2])),type="l", main=paste0("2nd PC (",round(100*FVE[2])," % of var)"))
+plot(Loadings[,3]*sign(sum(Loadings[,3])),type="l", main=paste0("3rd PC (",round(100*FVE[3])," % of var)"))
+plot(Loadings[,4]*sign(sum(Loadings[,4])),type="l", main=paste0("4th PC (",round(100*FVE[4])," % of var)"))
+```
 
 
 
