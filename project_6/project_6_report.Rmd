@@ -26,25 +26,25 @@ set.seed(435) #set the seed for reproducible results
 ```{r, echo = FALSE, include = FALSE}
 #original data set too heavy, so I have exported a condensed one in my files following this procedure 
 
-#data <- read.csv('owid-covid-data.csv', header = T) 
-#data <- data %>% filter(continent == 'Europe')
+data <- read.csv('owid-covid-data.csv', header = T) 
+data <- data %>% filter(continent == 'Europe')
 #gg_miss_fct(x = data, fct = location)#to see where data is missing 
-#forbidden <- c('England', 'Scotland', 'Northern Ireland', 'Wales')
-#data <- subset(data, !(data$location %in% forbidden))
-#variables_to_keep <- c('location', 'date', 'total_cases', 'new_cases', 'total_cases_per_million', 'new_cases_per_million', 'stringency_index', 'population_density', 'median_age', 'aged_65_older', 'aged_70_older', 'gdp_per_capita', 'extreme_poverty', 'cardiovasc_death_rate', 'diabetes_prevalence', 'female_smokers', 'male_smokers', 'hospital_beds_per_thousand', 'life_expectancy', 'human_development_index', 'population', 'excess_mortality_cumulative_absolute', 'excess_mortality', 'excess_mortality_cumulative_per_million', 'excess_mortality_cumulative')
+forbidden <- c('England', 'Scotland', 'Northern Ireland', 'Wales')
+data <- subset(data, !(data$location %in% forbidden))
+variables_to_keep <- c('location', 'date', 'total_cases', 'new_cases', 'total_cases_per_million', 'new_cases_per_million', 'stringency_index', 'population_density', 'median_age', 'aged_65_older', 'aged_70_older', 'gdp_per_capita', 'extreme_poverty', 'cardiovasc_death_rate', 'diabetes_prevalence', 'female_smokers', 'male_smokers', 'hospital_beds_per_thousand', 'life_expectancy', 'human_development_index', 'population', 'excess_mortality_cumulative_absolute', 'excess_mortality', 'excess_mortality_cumulative_per_million', 'excess_mortality_cumulative')
 
-#df <- data[,variables_to_keep]
+df <- data[,variables_to_keep]
 #gg_miss_fct(x = df, fct = location)
 
 #some countries still have lots of missing data so we don't take them 
-#forbidden <- c('Andorra', 'Faeroe Islands', 'Gibraltar', 'Guernsey', 'Isle of Man', 'Jersey', 'Kosovo', 'Liechtenstein', 'Monaco', 'San Marino', 'Vatican')
-#df <- subset(df, !(df$location %in% forbidden)) #the data is way better
+forbidden <- c('Andorra', 'Faeroe Islands', 'Gibraltar', 'Guernsey', 'Isle of Man', 'Jersey', 'Kosovo', 'Liechtenstein', 'Monaco', 'San Marino', 'Vatican')
+df <- subset(df, !(df$location %in% forbidden)) #the data is way better
 
-#df <- df %>% mutate(date = as.Date(date, format = "%Y-%m-%d")) 
+df <- df %>% mutate(date = as.Date(date, format = "%Y-%m-%d")) 
 
 #write.csv(df, "C:/Users/candi/Desktop/ETUDES/EPFL1A/semestre 2/applied statistics/applied_stat_359523/project_6\\data_processed.csv", row.names=FALSE)
 
-df <- read.csv('data_processed.csv', header = T) #data that is less big
+#df <- read.csv('data_processed.csv', header = T) #data that is less big
 
 ```
 
