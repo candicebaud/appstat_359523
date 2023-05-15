@@ -1,9 +1,24 @@
 ---
 title: "Project 6"
-author: "Sciper 359523"
-date: "2023-05-08"
-output: html_document
+subtitle: |
+  | Covid-19 data
+author : "Sciper 359523"
+#date: "March 19, 2023"
+output: 
+  html_document:
+    theme: cosmo
+    highlight: zenburn
+    toc: true
+    number_sections: true
+    toc_float:
+      collapsed: false
+header-includes:
+  - \usepackage{bm}
+  - \newcommand{\E}{\mathbb{E}}
+  - \newcommand{\R}{\mathbb{R}}
+#bibliography: biblio.bib
 ---
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE)
@@ -24,8 +39,6 @@ set.seed(435) #set the seed for reproducible results
 ```
 
 ```{r, echo = FALSE, include = FALSE}
-#original data set too heavy, so I have exported a condensed one in my files following this procedure 
-
 data <- read.csv('owid-covid-data.csv', header = T) 
 data <- data %>% filter(continent == 'Europe')
 #gg_miss_fct(x = data, fct = location)#to see where data is missing 
@@ -44,41 +57,34 @@ df <- df %>% mutate(date = as.Date(date, format = "%Y-%m-%d"))
 
 #write.csv(df, "C:/Users/candi/Desktop/ETUDES/EPFL1A/semestre 2/applied statistics/applied_stat_359523/project_6\\data_processed.csv", row.names=FALSE)
 
-#df <- read.csv('data_processed.csv', header = T) #data that is less big
+#df <- read.csv('data_processed.csv', header = T) 
 
 ```
 
-# 1. Introduction
-The covid-19 pandemic which started in December 2019 in Wuhan had a significant impact on the world, with over 160 million confirmed cases and 3.3 million deaths worldwide as of May 2023. The disease has been studied extensively in various fields, including epidemiology, medicine, and public health, and many models have been proposed. Some were based on theoretical models (SIR, SEIR, SEIRD...) and fitted to the data by estimating the models parameters. Another way of modelling the problem is to base the analysis on the data itself and not a general model, which has been proposed by Marc Lavielle [1], by detecting changing points in the derivative of the number of hospitalized patients, and then fitting polynomial regressions. In this project, we also want to build a model out of the data and will use functional pca, which can help identify important patterns of variation in functional data. Functional data is data that can be represented as curves or functions, such as time-series data or data from medical imaging. FPCA is used to identify the most important patterns of variation in functional data by decomposing the data into a set of orthogonal functions called principal components.
+# Introduction
+The covid-19 pandemic which started in December 2019 in Wuhan had a significant impact on the world, with over 160 million confirmed cases and 3.3 million deaths worldwide as of May 2023. The disease has been studied extensively in various fields, including epidemiology, medicine, and public health, and many models have been proposed. Some were based on theoretical models (SIR, SEIR, SEIRD...) and fitted to the data by estimating the models parameters. Another way of modelling the problem is to base the analysis on the data itself and not a general model, which has been proposed by Marc Lavielle [1], by detecting changing points in the derivative of the number of hospitalized patients, and then fitting polynomial regressions. In this project, we also want to build a model out of the data and will use pca, which can help identify important patterns of variation in amplitude in the data.
 
 We will begin by introducing the data collection and its characteristics and then smooth it. Next, we will perform functional pca on the smoothed data using svd(). Finally, we will interpret the results.
 
 # 2. Data collection and characteristics 
-In this project, the data used was collected from the website 'OurWorldInData' [2], which compiles data on COVID-19 from the World Health Organization. I extracted the values from the original dataset corresponding to European countries with available COVID-19 data. The final dataset includes two categories of indicators: COVID-19 indicators and country characteristics. The COVID-19 indicators include the country, date, cumulative number of cases per million, and stringency index. The country characteristics include population, GDP per capita, and various health indicators, such as diabetes prevalence and the number of cardiovascular deaths. The full list of indicators, separated by category, is provided above for reference.
+In this project, the data used was collected from the website *OurWorldInData* [2], which compiles data on COVID-19 from the World Health Organization. I extracted the values from the original dataset corresponding to European countries with available COVID-19 data. The final dataset includes two categories of indicators: COVID-19 indicators and country characteristics. The COVID-19 indicators include the country, date, cumulative number of cases per million, and stringency index. The country characteristics include population, GDP per capita, and various health indicators, such as diabetes prevalence and the number of cardiovascular deaths. The full list of indicators, separated by category, is provided above for reference.
 
-##### Covid-19 indicators
+## Covid-19 indicators
 * Country
 * Date
 * Cumulative number of cases per million
 * Stringency index
  
-##### Countries characteristics
+## Countries characteristics
 * Demographic indicators(population, population density, median age, percentage of people older than 65 years old, and the percentage of people older than 70 years old, life expectancy, human development index)
 * Economic indicators(gdp per capita, extreme poverty proportion of people)
 * Health indicators (number of cardiovascular deaths, diabetes prevalence,excess mortality, share of smoking women/men)
 * Hospital beds per thousand
 
-One can visualize the evolution of the logarithm of the cumulated cases (per million) on *Figure 1*. 
 
+One can visualize the evolution of the logarithm of the cumulated cases (per million) on *Figure 1* for the whole period of the data. 
 
 ```{r, fig.align="center", fig.cap="Figure 1: Number of cases accross the different countries"}
-#df%>% ggplot(aes(x=date, y=total_cases, color=location)) + geom_line()
-#df%>% ggplot(aes(x=date, y=new_cases, color=location)) + geom_line()
-
-#df%>% ggplot(aes(x=date, y=total_cases_per_million, color=location)) + geom_line()
-
-#df%>% ggplot(aes(x=date, y=new_cases_per_million, color=location)) + geom_line()
-
 df <- df %>% mutate(
   log_total_cases = log(total_cases),
   log_total_cases_per_million = log(total_cases_per_million)
@@ -96,22 +102,197 @@ In *Figure 2*, when examining the daily new cases, a weekly trend is apparent wi
 df%>% ggplot(aes(x=date, y=new_cases_per_million, color=location)) + geom_line() + xlab('date') + ylab('New cases per million')
 ```
 
-# 3. Smoothing 
-## Rollmean
+Moreover, since countries were not impacted at the same time by the pandemic, comparing them on the same time scale is not appropriate, so in the next section, I will shift the curves in time to readjust for the pandemic lag after smoothing the data. One can also see that the pandemic seems to settle down in summer 2021, and then start again. For this project, I thus consider only the period until the 1st of July 2021.
 
 
-## Kernel
+# Smoothing and registering
+## Smoothing 
+To effectively smooth the data, I have considered two methods: the rolling mean with a 7-day window to address reporting issues during weekends, and the normal kernel smoothing technique using a 7-day window. Both methods yield valid and closely aligned results, but after careful consideration, I have decided to retain the series smoothed with the rolling mean approach.
 
-# 4. Functional PCA
+The primary advantage of rolling mean over kernel smoothing lies in its simplicity and computational efficiency. Rolling mean can be seen as a specific instance of kernel smoothing, where the function used is the uniform density. This means that it corresponds to calculating the average of a sequence of data points within a fixed window. The simplicity and interpretability of rolling mean make it easier to comprehend and compute compared to normal kernel smoothing.
 
-
-# 5. Interpretation 
-
-
-# 6. Discussion
+However, it's worth noting that kernel smoothing offers the flexibility to assign different weights to observations, making it more robust against extreme values. In this specific case, since both methods yield similar results, I have opted for the rolling mean due to its simplicity.
 
 
-# 7. References 
+```{r, echo = FALSE, include = FALSE}
+library(cowplot)
+library(zoo)
+#roll <- rollmean(df$log_total_cases_per_million, k=7, align = 'right', fill = NA)
+
+countries <- unique(df$location)
+test <- df %>% filter(location == countries[1])
+smoothed = rollmean(test$log_total_cases_per_million, k=7, align = 'right', fill = NA)
+test$roll_log_cases_per_million <- smoothed
+smoothed = rollmean(test$new_cases_per_million, k=7, align = 'right', fill = NA)
+test$roll_new_cases_per_million <- smoothed
+data_frame <- test
+
+countries <- countries[2:length(countries)]
+
+for (country in countries){
+  test <- df %>% filter(location == country)
+  smoothed = rollmean(test$log_total_cases_per_million, k=7, align = 'right', fill = NA)
+  test$roll_log_cases_per_million <- smoothed
+  smoothed = rollmean(test$new_cases_per_million, k=7, align = 'right', fill = NA)
+  test$roll_new_cases_per_million <- smoothed
+  data_frame <- bind_rows(data_frame,test)
+}
+
+
+df <- df %>% mutate(
+  roll_log_cases_per_million = data_frame$roll_log_cases_per_million,
+  roll_new_cases_per_million = data_frame$roll_new_cases_per_million
+)
+
+df%>% ggplot(aes(x=date, y=roll_log_cases_per_million, color=location)) + geom_line()
+
+df%>% ggplot(aes(x=date, y=roll_new_cases_per_million, color=location)) + geom_line()
+```
+
+```{r, echo = FALSE, include = FALSE}
+countries <- unique(df$location)
+
+#calcule le smoothed pour chaque 
+test <- df %>% filter(location == countries[1])
+smoothed = ksmooth(test$date, test$total_cases_per_million, bandwidth = 7, kernel = 'normal')
+test$smoothed_cases_per_million <- smoothed$y
+smoothed = ksmooth(test$date, test$log_total_cases_per_million, bandwidth = 7)
+test$log_smoothed_cases_per_million <- smoothed$y
+data_frame <- test
+
+countries <- countries[2:length(countries)]
+
+for (country in countries){
+  test <- df %>% filter(location == country)
+  smoothed = ksmooth(test$date, test$total_cases, bandwidth = 7)
+  test$smoothed_cases_per_million <- smoothed$y
+  smoothed = ksmooth(test$date, test$log_total_cases_per_million, bandwidth = 7)
+  test$log_smoothed_cases_per_million <- smoothed$y
+  data_frame <- bind_rows(data_frame,test)
+}
+
+
+```
+
+
+
+## Shifting the curves 
+Previously, we applied smoothing techniques to the curves; however, they are currently not synchronized, requiring us to adjust their alignment. While B-splines, as discussed in class, could be used for curve registration, I have chosen a simpler method in this case. I have established a threshold based on the number of accumulated cases. Once a country surpasses this threshold, I redefine the time scale, ensuring that all curves start at that specific time. Consequently, the curves are shifted to commence together when they have reached a similar stage in the pandemic's progression. The outcomes of this alignment can be observed in *Figure 3*.
+
+```{r, echo = FALSE, include = FALSE}
+countries <- unique(data_frame$location)
+starting_point <- as.Date(numeric(length = length(countries)))
+
+i = 1
+for (country in countries){
+  data_ <- data_frame%>%filter(location == country)
+  m = min(which(data_$roll_log_cases_per_million > 1))
+  starting_point[i] <- (data_$date)[m]
+  i <- i+1
+}
+
+length = as.Date('01-07-2021', format = '%d-%m-%Y') - max(starting_point)
+
+i = 1
+data_ <- data_frame%>%filter(location == 'Albania') %>% filter(date >= starting_point[i]) %>% filter(date < starting_point[i] + length ) %>% select(-'date')
+data_$time <- 1:length
+i = 2
+for (country in countries[2:length(countries)]){
+  data__ <- data_frame%>%filter(location == country) %>% filter(date >= starting_point[i]) %>% filter(date < starting_point[i] + length)%>% select(-'date')
+  data__$time <- 1:length
+  data_ <- rbind(data_, data__)
+  i <- i+1
+}
+
+rm(data__)
+#data_ %>% group_by(location) %>% summarise(n = max(time))
+
+data_ %>% group_by(location) %>% ggplot(aes(x=time, y=roll_log_cases_per_million, color=location)) + geom_line()
+``` 
+
+```{r, fig.align="center", fig.cap="Figure 3: Shifted curves"}
+data_ %>% group_by(location) %>% ggplot(aes(x=time, y=roll_log_cases_per_million, color=location)) + geom_line()
+```
+
+The alignment of the curves successfully ensures that they start at the same time and exhibit a similar trend simultaneously. However, it is important to note that variations in their evolution still persist, as evidenced by the lack of complete synchronization in the peaks. This issue could potentially be addressed by employing B-splines, which would transform the time monotonically, allowing certain points to occur simultaneously.
+
+Another intriguing approach for shifting the curves involves following Marc Lavielle's procedure [1]. In his article, Lavielle utilizes the logarithmic derivative (u'/u) of the number of cases to identify critical breaking points in the curve. These breaking points play a significant role in determining the pandemic's progression towards a peak or a decline in the number of cases. By selecting and aligning the breaking points, it becomes possible to shift the curves together, ensuring that the breaking points coincide. 
+
+
+
+# PCA
+## With the cumulated number of cases 
+Now that the countries are synchronized in time, I do PCA on the smoothed logarithm of the cumulated number of cases. *Figure 4* displays the 4th first PCA obtained using the function svd().
+
+```{r, include = FALSE, echo = FALSE}
+col = c('time', 'roll_log_cases_per_million', 'location')
+data_pca <- data_[,col]
+data_pca <- pivot_wider(data_pca, names_from = location, values_from = roll_log_cases_per_million)
+gg_miss_fct(x = data_pca, fct = time) 
+
+#remove missing data if any
+data_pca <- na.omit(data_pca)
+data_pca <- data_pca[,2:length(data_pca)]
+
+matrix_pca <- data.matrix(data_pca)
+
+```
+
+
+```{r, fig.align="center", fig.cap="Figure 4: PCA curves"}
+X = t(matrix_pca)
+
+mu <- colMeans(X)
+X <- sweep(X,2,mu)
+
+SVD <- svd(X)
+Scores <- SVD$u %*% diag(SVD$d)
+Loadings <- SVD$v
+FVE <- SVD$d^2/sum(SVD$d^2)
+
+par(mfrow = c(3,2))
+
+plot(X[1,]+mu,type="l", ylim=range(X+mu), main="Data and the mean", ylab = '')
+for(n in 1:dim(X)[1]) points(X[n,]+mu,type="l")
+  points(mu,col=2,lwd=2,type="l")
+
+plot(Scores[1,]*sign(sum(Loadings[,1])), Scores[2,]*sign(sum(Loadings[,2])), main="1st vs 2nd PC scores", ylab = '')
+
+
+plot(Loadings[,1]*sign(sum(Loadings[,1])),type="l", main=paste0("1st PC (",round(100*FVE[1])," % of var)"), ylab = '')
+plot(Loadings[,2]*sign(sum(Loadings[,2])),type="l", main=paste0("2nd PC (",round(100*FVE[2])," % of var)"), ylab = '')
+plot(Loadings[,3]*sign(sum(Loadings[,3])),type="l", main=paste0("3rd PC (",round(100*FVE[3])," % of var)"), ylab = '')
+plot(Loadings[,4]*sign(sum(Loadings[,4])),type="l", main=paste0("4th PC (",round(100*FVE[4])," % of var)"), ylab = '')
+
+
+``` 
+
+
+## With additional features 
+
+
+
+# Interpretation 
+The results of the principal component analysis (PCA) reveal that the first principal component accounts for 55% of the total variance. This component exhibits an initial steep upward trend, capturing the first peak observed in the curves. Towards the end, it gradually decreases until it reaches zero. The second principal component explains 28% of the variance and shows an increasing trend following the decline of the first principal component. Moving on, the third and fourth principal components display a peak at the beginning, followed by a decrease. Together, they account for 13% of the explained variance. In total, the first four principal components explain 96% of the total variance observed in the data.
+
+
+By adding other features, it appears that ... TO DO
+
+
+
+
+# Discussion
+In this project, our main focus was to analyze and explain the amplitude of data representing the logarithm of cumulative COVID-19 cases in European countries within a specific time period. Given the spread of the pandemic, countries experienced variations in the timing of case numbers and deaths, resulting in lagged evolutions.
+
+To address this time shift, we adjusted the curves by synchronizing them, enabling us to conduct a more accurate principal component analysis (PCA). By considering the curves' alignment, we were able to obtain the four leading principal components, which accounted for 96% of the total variance. Notably, the first principal component explained 55% of the variance and effectively captured the initial peak experienced by the countries.
+
+However, it is important to acknowledge that factors such as countries' demographics and political measures can significantly influence the pandemic's evolution. This complexity limits the effectiveness of our simple curve-shifting method, which assumes linear time progression. To enhance our analysis and provide a more comprehensive understanding, it would be advisable to implement B-splines for data registration. This approach would better account for variations in amplitude and potentially capture the intricate dynamics influenced by demographic and political factors.
+
+
+
+
+
+# References 
 [1] "Using Hospital Data for Monitoring the
 Dynamics of COVID-19 in France", Marc Lavielle, INRIA, Ecole Polytechnique, published in Journal of data science, statistics and visualisation, Nov 2022
 

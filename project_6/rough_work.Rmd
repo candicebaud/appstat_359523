@@ -73,6 +73,9 @@ df <- df %>% mutate(
 df%>% ggplot(aes(x=date, y=log_total_cases_per_million, color=location)) + geom_line()
 ``` 
 
+
+
+
 # smoothing with rolling mean
 rolling mean of 7 (weekly reporting pb)
 ```{r}
@@ -80,9 +83,29 @@ library(cowplot)
 library(zoo)
 #roll <- rollmean(df$log_total_cases_per_million, k=7, align = 'right', fill = NA)
 
+countries <- unique(df$location)
+test <- df %>% filter(location == countries[1])
+smoothed = rollmean(test$log_total_cases_per_million, k=7, align = 'right', fill = NA)
+test$roll_log_cases_per_million <- smoothed
+smoothed = rollmean(test$new_cases_per_million, k=7, align = 'right', fill = NA)
+test$roll_new_cases_per_million <- smoothed
+data_frame <- test
+
+countries <- countries[2:length(countries)]
+
+for (country in countries){
+  test <- df %>% filter(location == country)
+  smoothed = rollmean(test$log_total_cases_per_million, k=7, align = 'right', fill = NA)
+  test$roll_log_cases_per_million <- smoothed
+  smoothed = rollmean(test$new_cases_per_million, k=7, align = 'right', fill = NA)
+  test$roll_new_cases_per_million <- smoothed
+  data_frame <- bind_rows(data_frame,test)
+}
+
+
 df <- df %>% mutate(
-  roll_log_cases_per_million = rollmean(log_total_cases_per_million, k=7, align = 'right', fill = NA),
-  roll_new_cases_per_million = rollmean(new_cases_per_million, k=7, align = 'right', fill = NA)
+  roll_log_cases_per_million = data_frame$roll_log_cases_per_million,
+  roll_new_cases_per_million = data_frame$roll_new_cases_per_million
 )
 
 df%>% ggplot(aes(x=date, y=roll_log_cases_per_million, color=location)) + geom_line()
@@ -98,7 +121,7 @@ countries <- unique(df$location)
 
 #calcule le smoothed pour chaque 
 test <- df %>% filter(location == countries[1])
-smoothed = ksmooth(test$date, test$total_cases_per_million, bandwidth = 7)
+smoothed = ksmooth(test$date, test$total_cases_per_million, bandwidth = 7, kernel = 'normal')
 test$smoothed_cases_per_million <- smoothed$y
 smoothed = ksmooth(test$date, test$log_total_cases_per_million, bandwidth = 7)
 test$log_smoothed_cases_per_million <- smoothed$y
@@ -115,16 +138,181 @@ for (country in countries){
   data_frame <- bind_rows(data_frame,test)
 }
 
-data_frame%>% ggplot(aes(x=date, y=smoothed_cases_per_million, color=location)) + geom_line()
+#data_frame%>% ggplot(aes(x=date, y=smoothed_cases_per_million, color=location)) + geom_line()
 
 data_frame%>% ggplot(aes(x=date, y=log_smoothed_cases_per_million, color=location)) + geom_line()
 
 ```
 
 
-# PCA avec juste les pays, pas de variable en plus, et pas de registration 
-on fait un dataset 
+
+# Registering the curves
+quand on passe à plus de 10% de la pop on register au début, on s'arrête au premier juillet pour tout le monde 
+avec la data smooth par kernel
 ```{r}
+countries <- unique(data_frame$location)
+starting_point <- as.Date(numeric(length = length(countries)))
+
+i = 1
+for (country in countries){
+  data_ <- data_frame%>%filter(location == country)
+  m = min(which(data_$roll_log_cases_per_million > 1))
+  starting_point[i] <- (data_$date)[m]
+  i <- i+1
+}
+
+length = as.Date('01-07-2021', format = '%d-%m-%Y') - max(starting_point)
+
+i = 1
+data_ <- data_frame%>%filter(location == 'Albania') %>% filter(date >= starting_point[i]) %>% filter(date < starting_point[i] + length ) %>% select(-'date')
+data_$time <- 1:length
+i = 2
+for (country in countries[2:length(countries)]){
+  data__ <- data_frame%>%filter(location == country) %>% filter(date >= starting_point[i]) %>% filter(date < starting_point[i] + length)%>% select(-'date')
+  data__$time <- 1:length
+  data_ <- rbind(data_, data__)
+  i <- i+1
+}
+
+rm(data__)
+#data_ %>% group_by(location) %>% summarise(n = max(time))
+
+data_ %>% group_by(location) %>% ggplot(aes(x=time, y=roll_log_cases_per_million, color=location)) + geom_line()
+``` 
+
+
+# 2e registration
+```{r, eval =FALSE}
+#data_frame %>% group_by(location) %>% ggplot(aes(x=date, y=new_cases_per_million, color=location)) + geom_line()
+#data_frame <- data_frame %>% mutate(diff = diff(roll_new_cases_per_million)/roll_new_cases_per_million)
+
+#data_frame %>% group_by(location) %>% filter(date < as.Date('01-07-2021', format = '%d-%m-%Y')) %>% ggplot(aes(x=date, y=diff, color=location)) + geom_line() + ylim(-5, 10)
+
+#data_frame$roll_new_cases_per_million
+
+#data_ <- data_ %>% mutate(diff = diff(roll_new_cases_per_million)/roll_new_cases_per_million)
+countries <- unique(data_$location)
+
+test <- data_ %>% filter(location == countries[1])
+test$diff = diff(test$roll_new_cases_per_million)/test$roll_new_cases_per_million
+data_frame_2 <- test
+
+countries <- countries[2:length(countries)]
+
+
+#test <- data_ %>% filter(location == countries[1])
+#test$diff = diff(test$roll_new_cases_per_million)/test$roll_new_cases_per_million
+#data_frame_2 <- rbind(test, data_frame_2)
+
+for (country in countries){
+  test <- data_ %>% filter(location == country)
+  test$diff = diff(test$roll_new_cases_per_million)/test$roll_new_cases_per_million
+  data_frame_2 <- rbind(data_frame_2,test)
+}
+
+data_frame_2 %>% group_by(location) %>%ggplot(aes(x=time, y=diff, color=location)) + geom_line() + ylim(-5, 5)
+
+data_frame_2 %>% filter(location == 'France') %>% ggplot(aes(x=time, y=diff, color=location)) + geom_line()
+
+data_frame_2 %>% filter(location == 'Czechia') %>% ggplot(aes(x=time, y=diff, color=location)) + geom_line()
+
+data_frame_2 %>% filter(location == 'Switzerland') %>% ggplot(aes(x=time, y=diff, color=location)) + geom_line()
+
+data_frame_2 %>% filter(location == 'Belgium') %>% ggplot(aes(x=time, y=diff, color=location)) + geom_line()
+
+data_frame_2 %>% filter(location == 'Spain') %>% ggplot(aes(x=time, y=diff, color=location)) + geom_line()
+
+data_frame_2 %>% filter(location == 'Sweden') %>% ggplot(aes(x=time, y=diff, color=location)) + geom_line()
+
+data_frame_2 %>% filter(location == 'Finland') %>% ggplot(aes(x=time, y=diff, color=location)) + geom_line()
+
+countries
+breaking_points <- c(45, 50, 40, 55, 60, 10, 100)
+
+#on veut synchroniser les breaking points
+mean = mean(breaking_points)
+#france : on shifte de +5, czechia on laisse, suisse on shifte de +10, belgium on shifte de -5, espagne on shifte de -10 : donc on enlève 10 à droite et à gauche au max 
+countries_to_keep<-c('France', 'Czechia', 'Switerland', 'Belgium', 'Spain', 'Sweden', 'Finland')
+shift <- c(0, 0, 10, -5, -10, 40, 50)
+data_frame_2_filtered <- data_frame_2 %>% filter(location %in% countries_to_keep ) 
+
+i=1
+data_frame_filtered <- data_frame_2_filtered %>% filter(location == 'France') %>% mutate(
+  time = time - shift[i]
+)
+
+i=2
+for (country in countries_to_keep[2:length(countries_to_keep)]){
+  data_frame_filtered <- rbind(data_frame_2_filtered %>% filter(location == country) %>% mutate(time = time - shift[i]), data_frame_filtered)
+  i = i+1
+}
+
+data_frame_filtered <- data_frame_filtered %>% filter(time >0) %>% filter(time <(as.numeric(length) - max(shift)))
+
+data_frame_filtered %>% group_by(location) %>%ggplot(aes(x=time, y=roll_log_cases_per_million, color=location)) + geom_line()
+
+```
+
+
+# PCA avec juste les pays, pas de variable en plus
+```{r}
+col = c('time', 'roll_log_cases_per_million', 'location')
+data_pca <- data_[,col]
+data_pca <- pivot_wider(data_pca, names_from = location, values_from = roll_log_cases_per_million)
+#gg_miss_fct(x = data_pca, fct = time) #on a un intervalle sans données manquantes 
+
+#on enlève les données manquantes
+data_pca <- na.omit(data_pca)
+data_pca <- data_pca[,2:length(data_pca)]
+
+matrix_pca <- data.matrix(data_pca)
+
+
+
+
+
+
+
+
+
+col = c('time', 'roll_log_cases_per_million', 'location')
+data_pca <- data_frame_filtered[,col]
+data_pca <- pivot_wider(data_pca, names_from = location, values_from = roll_log_cases_per_million)
+#gg_miss_fct(x = data_pca, fct = time) #on a un intervalle sans données manquantes 
+
+#on enlève les données manquantes
+data_pca <- na.omit(data_pca)
+data_pca <- data_pca[,2:length(data_pca)]
+
+matrix_pca <- data.matrix(data_pca)
+
+
+
+
+
+
+
+
+
+
+
+col = c('time', 'roll_log_cases_per_million', 'location')
+data_pca <- data_[,col] %>% filter(location %in%countries_to_keep)
+data_pca <- pivot_wider(data_pca, names_from = location, values_from = roll_log_cases_per_million)
+#gg_miss_fct(x = data_pca, fct = time) #on a un intervalle sans données manquantes 
+
+#on enlève les données manquantes
+data_pca <- na.omit(data_pca)
+data_pca <- data_pca[,2:length(data_pca)]
+
+matrix_pca <- data.matrix(data_pca)
+
+
+```
+
+
+
+```{r, eval = FALSE}
 col = c('date', 'log_smoothed_cases_per_million', 'location')
 data_pca <- data_frame[,col]
 data_pca <- pivot_wider(data_pca, names_from = location, values_from = log_smoothed_cases_per_million)
@@ -162,10 +350,10 @@ plot(Scores[1,]*sign(sum(Loadings[,1])), Scores[2,]*sign(sum(Loadings[,2])), mai
 
 
 plot(Loadings[,1]*sign(sum(Loadings[,1])),type="l", main=paste0("1st PC (",round(100*FVE[1])," % of var)"))
-
 plot(Loadings[,2]*sign(sum(Loadings[,2])),type="l", main=paste0("2nd PC (",round(100*FVE[2])," % of var)"))
 plot(Loadings[,3]*sign(sum(Loadings[,3])),type="l", main=paste0("3rd PC (",round(100*FVE[3])," % of var)"))
 plot(Loadings[,4]*sign(sum(Loadings[,4])),type="l", main=paste0("4th PC (",round(100*FVE[4])," % of var)"))
+#plot(Loadings[,4]*sign(sum(Loadings[,5])),type="l", main=paste0("5th PC (",round(100*FVE[4])," % of var)"))
 
 
 #plot(matrix_pca[,1],type="l")
@@ -182,8 +370,8 @@ plot(Loadings[,4]*sign(sum(Loadings[,4])),type="l", main=paste0("4th PC (",round
 ```{r}
 #data_pca
 #en ajoutant par ex le gdp per capita 
-col = c('location', 'gdp_per_capita')
-new_data <- data_frame[,col]
+col = c('time', 'location', 'gdp_per_capita')
+new_data <- data_[,col]
 new_data <- new_data%>%group_by(location, gdp_per_capita) %>%summarise()
 
 matrix_test <- t(data.frame(t(new_data)[2,]))
@@ -197,12 +385,39 @@ colnames(matrix_test) <- names(data_pca)
 data_pca_gdp <- bind_rows(data_pca, matrix_test)
 
 
+X = t(data.matrix(data_pca_gdp))
+
+mu <- colMeans(X)
+X <- sweep(X,2,mu)
+
+#X <- t(X)
+SVD <- svd(X)
+Scores <- SVD$u %*% diag(SVD$d)
+Loadings <- SVD$v
+FVE <- SVD$d^2/sum(SVD$d^2)
+
+par(mfrow = c(3,2))
+
+plot(X[1,]+mu,type="l", ylim=range(X+mu), main="Data and the mean")
+for(n in 1:dim(X)[1]) points(X[n,]+mu,type="l")
+  points(mu,col=2,lwd=2,type="l")
+
+plot(Scores[1,]*sign(sum(Loadings[,1])), Scores[2,]*sign(sum(Loadings[,2])), main="1st vs 2nd PC scores")
 
 
+plot(Loadings[,1]*sign(sum(Loadings[,1])),type="l", main=paste0("1st PC (",round(100*FVE[1])," % of var)"))
 
+plot(Loadings[,2]*sign(sum(Loadings[,2])),type="l", main=paste0("2nd PC (",round(100*FVE[2])," % of var)"))
+plot(Loadings[,3]*sign(sum(Loadings[,3])),type="l", main=paste0("3rd PC (",round(100*FVE[3])," % of var)"))
+plot(Loadings[,4]*sign(sum(Loadings[,4])),type="l", main=paste0("4th PC (",round(100*FVE[4])," % of var)"))
+
+
+```
+
+```{r}
 #en ajoutant plusieurs variables 
 col = c('location', 'gdp_per_capita', 'median_age', 'female_smokers')
-new_data <- data_frame[,col]
+new_data <- data_[,col]
 new_data <- new_data%>%group_by(location, gdp_per_capita, median_age, female_smokers) %>%summarise()
 
 matrix_test <- t(data.frame(t(new_data)[2,], t(new_data)[3,], t(new_data)[4,]))
@@ -262,6 +477,7 @@ plot(Loadings[,4]*sign(sum(Loadings[,4])),type="l", main=paste0("4th PC (",round
 
 
 # with functional data  ? 
+peut-être définir une fenêtre de temps (début-fin) ? registration ? 
 ```{r}
 library(fda)
 data_pca$time <- seq(1,length(data_pca$Albania), by = 1)
@@ -337,6 +553,11 @@ plot(Loadings[,4]*sign(sum(Loadings[,4])),type="l", main=paste0("4th PC (",round
 
 
 
+```{r, fig.align="center", fig.cap="Figure 3: Smoothed curves"}
+data_frame %>% filter(date <=as.Date('01-07-2021', format = '%d-%m-%Y')) %>% ggplot(aes(x=date, y=roll_log_cases_per_million, color=location)) + geom_line()
 
+```
+
+ADD COMMENT
 
 
