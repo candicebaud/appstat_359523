@@ -1,8 +1,22 @@
 ---
-title: "Project 3"
-author: "Sciper 359523"
-date: "2023-03-20"
-output: html_document
+title: "Project 6"
+subtitle: |
+  | Premier League data
+author : "Sciper 359523"
+#date: "March 19, 2023"
+output: 
+  html_document:
+    theme: cosmo
+    highlight: zenburn
+    toc: true
+    number_sections: true
+    toc_float:
+      collapsed: false
+header-includes:
+  - \usepackage{bm}
+  - \newcommand{\E}{\mathbb{E}}
+  - \newcommand{\R}{\mathbb{R}}
+#bibliography: biblio.bib
 ---
 
 ```{r setup, include=FALSE}
@@ -29,7 +43,7 @@ df21 <- read.csv(file = '2021-22.csv')
 set.seed(435) #set the seed for reproducible results
 ```
 
-# 1. Introduction
+# Introduction
 Home advantage is a well-known phenomenon in football, where a team playing at their home stadium has an advantage over the away team. This advantage can be attributed to factors such as familiarity with the playing surface and surroundings, support of home fans, and a psychological boost. In addition, referees may also be influenced by the home crowd, which is known as refereeing bias. A study by Garicano and Palacios-Huerta (2001)[1] found that home teams in the Spanish La Liga received significantly fewer yellow and red cards than away teams, suggesting that referees may be influenced by the home crowd.
 
 The magnitude of the home advantage effect has been highlighted by previous studies. Nevill, Newell, and Gale (1996) [2] analyzed over 10,000 matches from English football leagues and found that home teams won approximately 60% of matches, while away teams won only 20% of matches. A more recent study by Pollard [3] analyzed data from the UEFA Champions League and concluded that home teams won 62.4% of matches, while away teams won only 20.3% of matches.
@@ -38,7 +52,7 @@ In this project, we analyze the English Premier League during the seasons 2018-2
 
 In Section 2, we introduce the dataset, and in Section 3, we describe our model building procedure and present the final model. Section 4 analyzes our model via diagnostics, and we will analyze its stability in Section 5. In Section 6, we interpret and analyze the results, and finally, we conclude the work done and discuss potential improvements in Section 7.
 
-# 2. Data characteristics
+# Data characteristics
 The data used for analysis consists of match results and statistics, betting odds, and bookmaker information from the English Premier League. The data set contains match results for four seasons : 2018-2019, 2019-2020, 2020-2021, and 2021-2022. The match results variables include the winning team, home and away teams, goals scored by each team at half-time and full-time, the number of shots and shots on target, as well as yellow and red cards for each team. In addition, the data set includes information on the number of BetBrain bookmakers used to calculate match odds averages and maximums, and total goals betting odds. 
 
 ```{r tidy the data and rename, echo=FALSE}
@@ -129,10 +143,10 @@ df_goals_all <- df_restr %>%
 graph <- df_restr %>% mutate(year = year(date),month = month(date)) %>% group_by(year, month, team_status, win) %>% summarise(number=n()) %>% mutate(freq= number/sum(number))%>% mutate(
   home_win = case_when(
     team_status == 'HomeTeam' & win == 1 ~ 'Home win',
-  team_status == 'HomeTeam' & win == 0 ~ 'Away win',
-  team_status == 'AwayTeam' & win == 1 ~ 'Away win',
-  team_status == 'AwayTeam' & win == 0 ~ 'Home win',
-  win == 2 ~ 'Draw')) %>% group_by(year, month, home_win, freq) %>% summarise() %>%
+    team_status == 'HomeTeam' & win == 0 ~ 'Away win',
+    team_status == 'AwayTeam' & win == 1 ~ 'Away win',
+    team_status == 'AwayTeam' & win == 0 ~ 'Home win',
+    win == 2 ~ 'Draw')) %>% group_by(year, month, home_win, freq) %>% summarise() %>%
   mutate(test = paste(paste('01',month),year), Date = as.Date(test, format = "%d %m %Y")) %>%  
   mutate(covid_before_after = as.factor(case_when(
       Date >= "2020-03-12" & Date <= "2021-06-01"~ "In-covid",
@@ -162,8 +176,8 @@ Figure 1 provides a visual representation of the distribution of home wins, away
 
 In the next section, we model the data to gain a deeper understanding of the extent to which the home advantage persisted during the COVID-19 pandemic. As a first definition of home advantage, we primarily examine the impact of playing at home on a team's goal scoring ability with a poisson model. Secondly, we use the match results (win or loose) to build another poisson model. Our analysis aims to provide robust evidence on the impact of playing without fans and whether it affected the home advantage in the English Premier League.
 
-# 3. Model building
-## a. Poisson model for the number of goals
+# Model building
+## Poisson model for the number of goals
 Home advantage can manifest in various forms, and we consider one indicator to be a team scoring more goals when playing at home. We construct a global Poisson model to evaluate the effect of playing at home on a team's goal scoring ability and the COVID-19 effect. In this model are included the following variables : the number of goals scored, the team, a binary indicator of whether the team is playing home or away, an indicator of the COVID-19 period having levels corresponding to before,during and after. Finally, we include a cross term between the indicator of playing home or away and the indicator of the COVID-19 period. 
 
 The poisson model can be written with the following equation 
@@ -194,7 +208,7 @@ The estimated coefficients of the model are in the following table:
 
 
 
-## b. Poisson model for the number of wins
+## Poisson model for the number of wins
 In this section, we explore whether home teams have an advantage in terms of winning matches. This approach provides an alternative perspective on the home advantage phenomenon, which can help us to gain a more comprehensive understanding of the impact of playing at home in the English Premier League. We include the same variables as for the model in 3.a.
 
 ```{r poisson model, echo=FALSE, include = FALSE}
@@ -217,7 +231,7 @@ Table 2 displays the results.
 
 
 
-# 4. Residuals diagnostics
+# Residuals diagnostics
 To assess the quality of the models built, we analyze the diagnostics associated. We present the previously mentioned Poisson model (3.b) diagnostics in *Figure 3*. The residual vs fitted plot doesn't show any trend which indicates a good modelling of the data. The normal QQ-plot indicates that the residuals are skewed with some outliers but still has a good shape. The scale-location and constant leverage plots also identify these outliers. It may be worthwhile to refit the model without these influential outliers to determine the extent to which the model is impacted. 
 
 
@@ -227,8 +241,8 @@ plot(model_global_wins)
 ```   
 
 
-# 5. Stability 
-## a. Promoted and relegated teams
+# Stability 
+## Promoted and relegated teams
 The models we have built so far have not taken into account the fact that some teams are relegated and others are promoted from season to season, which could potentially impact the estimates of the coefficients. To address this, we discard those teams and refit the Poisson model described in Part 3.b. This new model takes into account only the teams that have participated in all four seasons, and the estimated coefficients are based on these teams only. The estimated coefficients for the remaining teams are presented in the following table:
 
 ```{r promoted, echo=FALSE, include = FALSE}
@@ -260,7 +274,7 @@ plot(model_wins_all_rel)
 
 
 
-## b. Draw effect
+## Draw effect
 Another limitation of the model described in Part 3.b is that we only counted the number of wins, but we could also include the draws as a "victory" for both teams. By doing this, we can account for the so-called "draw effect", which is the tendency of home teams to draw more often than away teams. This effect could potentially impact the estimates of the coefficients. To address this issue, we refit the Poisson model by counting draws as 0.5 wins for both teams. The estimated coefficients for this modified model are presented in the table below :
 
 
@@ -296,7 +310,7 @@ plot(model_wins_all_draw)
 
 
 
-# 6. Interpretation
+# Interpretation
 In section 3, we present two models to quantify the home advantage. The first model examines the difference in the number of goals scored by teams. The coefficient associated with playing home is not statistically significant at the usual levels (1% and 5%) but the coefficient associated to the cross term Pre-covid and Home playing is statistically and practically significant. This coefficient is positive (0.19) which means that 1.2 is the proportional change in the expected number of goals when a team played at home during covid-19 as opposed to playing away during covid-19. The post-covid coefficient is not statistically significant at the 5% level, which is illustrated by the confidence interval containing 0. 
 
 The second approach considers the number of strictly won games and models it again using a Poisson regression. The estimated coefficient before the pandemic is also statistically and practically significant (0.39) at the usual levels (5% and 1%). Taking the exponential, we obtain that 1.47 is the proportional change in the expected number of wins when a team plays at home as opposed to playing away before covid-19. The coefficient associated with after the pandemic period is not significant at the 5% level (but is at the 10%), indicating no home advantage during this period.
@@ -309,7 +323,7 @@ To compute the confidence intervals for prediction, one should use the function 
 Finally, by taking into account the promoted and relegated teams, as well as a draw effect, we obtain consistent results, and we can even identify that the effect before the closed-door period is of the same magnitude.The model is thus stable which gives additional confidence in its accuracy. 
 
 
-# 7. Discussion
+# Discussion
 The models developed show a greater effect of home advantage before the COVID-19 pandemic compared to during of after the closed-doors period due to the closure of public stadiums. Since the stadiums' grass didn't change, the most plausible explanation of this decrease is the absence of supporters that can influence the players and the referees. That hypothesis seems the most relevant since after the pandemic, the estimated home advantage is positive and sometimes at the edge of statistical significance. The magnitude of the effect was generally similar although slightly smaller. Possible explanations for this slight decrease include teams becoming accustomed to playing in empty stadiums or changes in fan behavior before and after the pandemic.
 
 We considered Poisson models in our work, but the mean was generally greater from the variance in all the data sets we built, which showed under dispersion. Taking it in account doesn't change the estimated coefficients but can affect the p-value and therefore the significance of our models. We could use a negative binomial model or a quasi poisson specification to address this issue. 
@@ -318,7 +332,7 @@ The diagnostics and stability analyses demonstrate the robustness of the models,
 
 Another deepening would be to explore other definitions of the home advantage. Indeed, we did not explore the yellow and red cards, which was studied by Garicano and Palacios-Huertas [1], and that we could also model with a Poisson model. Additionally, while we analyzed the number of goals, it could also be interesting to investigate a wider indicator such as the number of targeted goals instead.
 
-# 8. References
+# References
 [1] Garicano, L. and Palacios-Huerta, I. (2001). "An empirical examination of multilateral bargaining." American Economic Review, 91(4): 828-848.
 
 [2] Nevill, A. M., Newell, S. M., & Gale, S. (1996). Factors associated with home advantage in English and Scottish soccer matches. Journal of Sports Sciences, 14(2), 181-186.
