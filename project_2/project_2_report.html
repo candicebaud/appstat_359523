@@ -1594,6 +1594,27 @@ observations for each level, so we use clustering to group levels and
 increase the sample size. In addition, certain variables are
 over-dispersed, so we explore log and square root transformations to
 construct more accurate models.</p>
+<p>In summary, the clustered variables are as follows :</p>
+<ul>
+<li>Traffic type</li>
+<li>Browser</li>
+<li>Operating systems</li>
+</ul>
+<p>The added variables are as follows :</p>
+<ul>
+<li>The log and square root of the exit rate</li>
+<li>The log and square root of the bounce rates</li>
+<li>The log and square root of the number of administrative pages
+consulted and the log and square root of the time spent on those
+pages</li>
+<li>The log of the number of product related pages consulted and the log
+and square root of the time spent on each</li>
+<li>The log of the informative duration</li>
+<li>The log of the page values</li>
+</ul>
+<p>Finally, I added variables accounting for interactions between the
+number of pages visited and the time spent on each, for each category of
+pages (administrative, product related, informative).</p>
 </div>
 <div id="model-selection" class="section level1" number="3">
 <h1><span class="header-section-number">3</span> Model selection</h1>
@@ -1602,19 +1623,19 @@ added variables and compare it to the one with added variables to assess
 their relevance. The model with added variables has a smaller AIC (6079
 compared to 7167) as well as a smaller deviance (5939 compared to 7059)
 which gives confidence in those new variables.</p>
-<p>I then used the stepAIC function of the MASS package to perform
-AIC-based model selection. This created a basis model that I improved by
+<p>I then use the stepAIC function of the MASS package to perform
+AIC-based model selection. This creates a basis model that I improve by
 examining the significance of the variables with the Anova command. This
-allowed me to build an improved model by adding variables one by one and
+allows me to build an improved model by adding variables one by one and
 simultaneously testing their significance.</p>
-<p>The final model includes the variables: the visitor type, the traffic
-type, the page values and its log, the exit rates and their square root,
-the bounce rates and their square root, the session month, the time
-spent looking at product-related information and its log and square
-root, the number of administrative pages looked at. All of these
+<p>The final model includes the following variables: the visitor type,
+the traffic type, the page values and its log, the exit rates and their
+square root, the bounce rates and their square root, the session month,
+the time spent looking at product-related information and its log and
+square root, the number of administrative pages looked at. All of these
 variables are significant at the 5% level, and most of them are even
 significant below the 0.1% level, which provides strong evidence for the
-model’s reliability. The AIC of our final model is 6043 and the deviance
+model’s reliability. The AIC of the final model is 6043 and the deviance
 is 5970.</p>
 <p>The table below reports the three most practically significant
 variables (in terms of odds ratio) and their confidence interval.</p>
@@ -1653,12 +1674,12 @@ variables (in terms of odds ratio) and their confidence interval.</p>
 because 0 doesn’t belong to the confidence interval). They are also
 practically significant because their odds ratio are greater than 1.
 Indeed, half of variables have odds ratio greater than 1 in the overall
-table and the rest mostly belongs to [0.2, 0.9]. Only the untransformed
-exit rate variable doesn’t seem practically significant even though it
-is statistically significant, since the odds ratio associated is of
-order <span class="math inline">\(10^{-18}\)</span>. The fact that the
-model also contains its square root captures most of the effect of the
-variable.</p>
+table and the rest mostly belongs to [0.2, 0.9]. Only the
+non-transformed exit rate variable doesn’t seem practically significant
+even though it is statistically significant, since the odds ratio
+associated is of order <span class="math inline">\(10^{-18}\)</span>.
+The fact that the model also contains its square root captures most of
+the effect of the variable.</p>
 </div>
 <div id="model-diagnostics" class="section level1" number="4">
 <h1><span class="header-section-number">4</span> Model diagnostics</h1>
