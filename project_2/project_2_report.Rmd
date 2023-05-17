@@ -1,8 +1,22 @@
 ---
-title: "Report Project 2"
-author: "Sciper 359523"
-date: "2023-03-06"
-output: html_document
+title: "Project 2"
+subtitle: |
+  | Purchases data
+author : "Sciper 359523"
+#date: "March 19, 2023"
+output: 
+  html_document:
+    theme: cosmo
+    highlight: zenburn
+    toc: true
+    number_sections: true
+    toc_float:
+      collapsed: false
+header-includes:
+  - \usepackage{bm}
+  - \newcommand{\E}{\mathbb{E}}
+  - \newcommand{\R}{\mathbb{R}}
+#bibliography: biblio.bib
 ---
 
 ```{r setup, include=FALSE}
@@ -22,7 +36,7 @@ load("2_online_shopping.RData")
 set.seed(435) #set the seed for reproducible results
 ```
 
-# 1. Introduction 
+# Introduction 
 In today's data-driven world, businesses are constantly seeking new ways to leverage customer data to make informed decisions and drive growth[1]. One area where data analysis can prove particularly useful is in forecasting customer purchases. By analyzing data on user behavior and purchase history, businesses can gain insights into what products or services customers are likely to buy in the future. Users' reactions are therefore scrutinized to improve sales by better tailoring the ads. 
 
 In this report, we work with a data set providing us several variable such as an outcome variable we want to model, which is a binary indicator of a purchase being made or not. The other variables, that will help build the model are mostly divided between the users' actions recorded by the websites, and the user's personal characteristics.    
@@ -32,7 +46,7 @@ In this report, we explore the use of a logistic regression model to predict pur
 The outline of the remainder of this report is as follows. We introduce the data in section 2, describe our model selection procedure in section 3 and present the final model. We analyse our model via the diagnostics in Section 4 and will compare it to other in section 5. In section 6 we conclude on the work done and the potential improvements.
 
 
-# 2. Data characteristics
+# Data characteristics
 The outcome of interest is the fact that a purchase was made or not (variable *purchase*). The data set is composed of several different features that can be decomposed in three main groups :
 
 1. Data coming from the e-commerce website :
@@ -99,6 +113,10 @@ df <- df %>% mutate(
 df <- df %>% select(purchase,visitor_type,traffic_type,region,browser, operating_systems,page_values, exit_rates, bounce_rates, special_day, weekend, month, time_prod_rel_page, n_prod_rel_page, time_info_page, n_info_page,time_admin_page, n_admin_page)
 
 buy <- 100*(1 - sum(df$purchase==0)/length(df$purchase)) #percentage of purchases
+
+df %>% group_by(month, visitor_type, purchase) %>% summarise(number= n()) %>% mutate(freq = number/sum(number)) %>% filter(purchase == 1) %>% mutate(month = as.numeric(month), Date = as.Date(paste(paste('01',month),'2020'), format = "%d %m %Y")) %>% filter(visitor_type != 'Other') %>% ggplot( aes(x=Date , y = freq, color = visitor_type)) + geom_line()
+
+df %>% group_by(month, purchase, exit_rates) %>% summarise() %>%  ggplot(aes(x=purchase , y = sqrt(exit_rates), color = month)) + geom_boxplot()
 ```
 
 The first exploratory data analysis revealed important insights into the correlation structure of the data set. *Figure 1* displays the correlation matrix, with only the most correlated features represented. The variable 'page values' is strongly correlated with purchase, and is also moderately correlated with exit rates and bounce rates, which are themselves highly correlated. Exit rates, in particular, are highly correlated with most of the other variables displayed in the figure, highlighting its importance as a feature that is heavily linked to the other ones.
@@ -327,7 +345,7 @@ df <- df %>% mutate(
 
 
 
-# 3. Model selection 
+# Model selection 
 
 ```{r model building, echo=FALSE, include = FALSE}
 m0_0 <- glm(purchase ~visitor_type + grouped_traffic_type + region + grouped_browser + grouped_operating_systems + page_values + exit_rates + bounce_rates + special_day + weekend + month + time_prod_rel_page + n_prod_rel_page + time_info_page + n_info_page + time_admin_page + n_admin_page, family = 'binomial', data = df) #without the new included variables 
@@ -412,7 +430,7 @@ They are statistically significant (with the Type II test, and because 0 doesn't
 anova_table
 ```
 
-# 4. Model diagnostics
+# Model diagnostics
 *Figure 2* shows the diagnostics of the model. On the upper left panel, one can see the characteristic two-bands pattern associated with logistic regressions. There are several visible outliers that appear to be influential on the model as identified in the *scale-location* and *residuals vs leverage panels*. The normal QQplot for the logistic regression also identifies some outliers in the upper tail.
 
 ```{r, fig.align="center", fig.cap="Figure 2 : Diagnostics"}
@@ -420,7 +438,7 @@ par(mfrow=c(2,2))
 plot(improved_model_2)
 ```
 
-# 5. Model comparison 
+# Model comparison 
 In this section, I compare the final model to the initial models to see to what extent the work on the base helped us build a better model. The red curve represents the initial model without the added variables (ie the log and sqrt transormations). The black curve represents the one built with all the variables of the data set. Finally, the blue curve represents the model resulting from the *stepAIC* function, and the green curve represents the final model. The AUC that is displayed is the one calculated in the sample for the final model. 
 
 The green one appears to really improve the model compared to the one built only by the *stepAIC* function. Transforming variables also clearly improves the ROC curve and thus the model.
@@ -489,7 +507,7 @@ By denoting by model0 the basis model without added variables, model1 the model 
 | Residuals deviance | 7059   | 5938   | 7030   | 5974   |
 
 
-# 6. Discussion
+# Discussion
 In conclusion, the logistic regression model developed in this project is satisfactory with all variables being significant at the 5% level. The model also outperformed other models based on AIC and AUC, and performed among the best ones regarding residuals deviance, which instills confidence in its accuracy. However, the presence of influential outliers in the dataset warrants further investigation, and their removal could potentially lead to an even more improved model. 
 
 It's worth noting that the clustering of variable levels was necessary to avoid having levels with insufficient data. However, collecting more data to include all levels could potentially improve the accuracy of the model even further.
