@@ -1,10 +1,24 @@
 ---
-title: "Report project 4"
-author: "Sciper 359523"
-date: "2023-04-03"
-output: html_document
+title: "Project 4"
+subtitle: |
+  | US elections data
+author : "Sciper 359523"
+#date: "March 19, 2023"
+output: 
+  html_document:
+    theme: cosmo
+    highlight: zenburn
+    toc: true
+    number_sections: true
+    toc_float:
+      collapsed: false
+runtime : shiny
+header-includes:
+  - \usepackage{bm}
+  - \newcommand{\E}{\mathbb{E}}
+  - \newcommand{\R}{\mathbb{R}}
+#bibliography: biblio.bib
 ---
-
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE)
@@ -24,7 +38,7 @@ df_usa <- read.table('4_US_elections.txt', header=T)
 ```
 
 
-# 1. Introduction
+# Introduction
 The period between 1948 and 1992 was a tumultuous time in American politics, marked by significant changes and transformations. During these years, the United States went through some of its most challenging periods, including the Cold War, the civil rights movement, and the Vietnam War. The presidential elections during this period reflect the social and political changes that took place in the country. In 1948, incumbent President Harry S. Truman, a Democrat, was facing a divided party and a difficult re-election campaign. He managed to win the election but his second term was marked by the Korean War and efforts to contain communism around the world. The Korean War was then ended under the presidency of Eisenhower(1952). His successor, John F.Kennedy (1960) faced the Civil Rights Movement, the Bay of Pigs invasion, and the Cuban Missile Crisis, which brought the world to the brink of nuclear war. After Kennedy's death, Johnson who had replaced him was elected (1964) and his presidency was marked by the Vietnam War. In 1976, Democrat Jimmy Carter's presidency was marked by significant foreign policy challenges, including the Iranian Hostage Crisis and the Soviet invasion of Afghanistan. Republican Reagan's presidency (1980) was marked by the Reagan revolution and efforts towards ending the cold war, that was finally ended under Republican Bush's presidency (1988), also marked by the Gulf War. [1], [2]
 
 In this project, we explore the presidential elections of this era, focusing on the outcomes that shaped the political landscape of the United States. We want specifically to assess whether the elections outcome can be predicted by linear models. 
@@ -32,7 +46,7 @@ In this project, we explore the presidential elections of this era, focusing on 
 To this end, after a brief introduction of the data-base features, we first build a 'naive' linear model in section 3 and then build a mixed model that we will show is more appropriate. Section 4 and 5 present the diagnostics of the model and a stability analysis respectively. In Section 6, we interpret and analyze the results, and finally, we conclude the work done and discuss potential improvements in Section 7.
 
 
-# 2. Data characteristics
+# Data characteristics
 The data set consists of election results such as the outcome variable which corresponds to the party candidate’s share of the vote in the given state and year; but also nationwide variables such as poll results or economic growth (GDP). It also contains statewide variable concerning previous elections' results and indicators of state ideology and position towards the candidate. Finally, it contains regional variables accounting for southern states or New England indicator. 
 We include in this data set a variable that corresponds to the region divided in Northeast, South, Midwest and West, as well as a variable corresponding to the incumbent president's party (Democrat or Republican).  
 
@@ -192,7 +206,6 @@ df_usa_map <- df_usa_map %>% mutate(
 library(usmap)
 library(plotly)
 library(shiny)
-#library(dplyr)
 
 # Create a list of years
 #df_usa_map <- df_usa_map %>% mutate(year = as.numeric(year))
@@ -252,8 +265,8 @@ shinyApp(ui, server)
 
 It is worth noting that the period between 1948 and 1992 was marked by numerous significant political events, including the Cold War, the Vietnam War, and the Gulf War. The diverse patterns of voting observed in *Figure 1* may reflect the shifting political landscape during this time period and the evolving attitudes of voters towards various political issues. 
 
-# 3. Linear model
-# 3.a Model building
+# Linear model
+## Model building
 The initial model we developed included all variables from the dataset, but the results showed that some variables had NA coefficients due to the presence of linear relations in the design matrix. To improve the model, we conducted variable selection based on plausibility. After careful consideration, we found that variables n1, n2, n3, n4, and s9 were not useful in our analysis due to their correlation with the year variable, and the fact that they provided unique values for each state and region when the year was fixed. Additionally, we removed the variable that corresponded to the number of electors in a given state and year since our outcome variable was the Democratic party's share of the vote. We also discarded the 'measure of state ideology' and 'ideological compatibility with candidates' due to their complexity and difficulty to interpret.
 
 For our initial regression, we did not include the 'region' variable but did include the 'state' variable.
@@ -268,7 +281,7 @@ The home state candidate variable also has a positive and statistically signific
 The state's economic growth has a slightly positive effect on the Democratic share of votes. 
 The variables representing the South, deep South, New England, and West regions are associated with negative, positive, and negative coefficients, respectively, indicating that southern states tend to favor Republican candidates. Lastly, each state coefficient shows the overall political ideology of the state, either leaning more towards the Republican or Democratic party.
 
-# 3.b Diagnostics
+## Diagnostics
 The linear model seems quite satisfactory because most variables are significant even below the 1% level and they have associated coefficients that seem plausible regarding US historical politics.
 The classical diagnostics presented in *Figure 2* are heteroskedastic and have a QQplot that gives confidence in the fitted model. 
 
@@ -284,7 +297,7 @@ plot(df_usa$state[1:561], resid(model_without_region))
 
 
 
-# 4. Mixed model
+# Mixed model
 We build in this section a mixed model to be able to account for the within-group correlation structure of the data by including random effects for each level of nesting.
 
 We choose to include in the model 'fixed' effects, that is to say : 
@@ -316,7 +329,7 @@ qqmath(final_model) #to have the qqplot of the residuals
 
 
 
-# 5. Interpretation
+# Interpretation
 The random effect variables are significant at all levels of significance with the Satterthwaite's method. The coefficients associated with the last elections' results are positive which means that if democrat scored a good share of votes in the last elections, they are more likely to score a good share in the upcoming elections. 
 Nationwide variables are also associated with positive coefficients meaning that when the polls are in favor of the Democratic candidate in September, and when the economic growth is good, people tend to vote more for the Democrats. The coefficient associated with the candidate being from the state is positive which also seems plausible since people could feel closer to him/her in the region and therefore favor him in the election.
 A strongly negative coefficient is unsurprisingly associated with the deep south indicator. A less stronger but still negative coefficient is also associated with the West in 1976 indicator. 
@@ -326,13 +339,13 @@ Since we clustered in region within the states, the intercept varies across regi
 Finally, we allowed for the slope of the Democratic majority in the legislature to vary also in regions within states, and one can observe very different coefficients associated with the different years and regions.
 
 
-# 6. Discussion
+# Discussion
 In part 3, we developed linear models to predict the outcomes of presidential elections in the US. Although the results appeared appealing, they were incorrect because they did not account for the hierarchical structure of the data. In part 4, we built a multilevel model that addressed this issue by accounting for the clustered effects. The results were more satisfactory, as the model took into account the hierarchical structure of the data. Our analysis showed that the share of votes in previous elections is a strong predictor of upcoming elections, and candidates who were born in the same region as the voters have an advantage in the region. Regional effects, such as the South being more inclined towards the Republican party, were also observed.
 
 To enhance our study, it would be valuable to re-evaluate the models using more recent election data. Our analysis only considered elections from 1948 to 1992, and since then, there have been significant shifts in American politics, including the 2008 election of Barack Obama and the 2016 election of Donald Trump. Including other relevant explanatory variables, such as metrics for social media communication, if available, could also provide a more comprehensive understanding of the dynamics that shape the outcomes of presidential elections.
 
 
-# 8. References
+# References
 
 [1] "The American Political Tradition and the Men Who Made It" by Richard Hofstadter (1948)
 
