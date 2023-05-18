@@ -272,7 +272,8 @@ The initial model we developed included all variables from the dataset, but the 
 For our initial regression, we did not include the 'region' variable but did include the 'state' variable.
 
 ```{r linear model, echo= FALSE, include = FALSE}
-model_without_region <- lm(Dvote ~ year + state + s1_bis + s2_bis + s3 + s5 + s4+ s6 + r1 + r2 + r3 + r4 + r5 + r6, data = df_usa)
+df_lm<- na.omit(df_usa)
+model_without_region <- lm(Dvote ~ year + state + s1_bis + s2_bis + s3 + s5 + s4+ s6 + r1 + r2 + r3 + r4 + r5 + r6, data = df_lm)
 summary(model_without_region)
 ```
 
@@ -290,9 +291,20 @@ par(mfrow=c(1,2))
 plot(model_without_region, which =c(1,2))
 ```
 
-However, when looking at the residuals grouped by state in *Figure 3*, it appears clearly that those residuals are not heteroskedastic since they depend on the state. This is due to the fact that the linear model is not appropriate for this type of data. Indeed, there is clustering (or nesting) in the data, ie, there is a hierarchical structure in the data where individual observations are nested within higher-level units. There is a year effect as well as a region effect for each year. The linear model that was used here does not account for the clustering in the data, which leads to biased estimates and incorrect model. We build in the next section a mixed model that allows observations from the same year to be correlated and observations within the same year and the same region to be correlated even further. 
+However, when looking at the residuals grouped by region within year in *Figure 3*, it appears clearly that there is grouping between regions within year. This is due to the fact that the linear model is not appropriate for this type of data. Indeed, there is clustering (or nesting) in the data, ie, there is a hierarchical structure in the data where individual observations are nested within higher-level units. There is a year effect as well as a region effect for each year. The linear model that was used here does not account for the clustering in the data, which leads to biased estimates and incorrect model. We build in the next section a mixed model that allows observations from the same year to be correlated and observations within the same year and the same region to be correlated even further. 
 ```{r, fig.align="center", fig.cap="Figure 3: Residuals diagnostics grouped by state"}
-plot(df_usa$state[1:561], resid(model_without_region))
+#plot(df_lm$state, resid(model_without_region))
+
+df_lm$residuals <- resid(model_without_region)
+df_lm$fitted <- model_without_region$fitted.values
+
+#ggplot(df_lm, aes(x = as.factor(year), y = residuals, color = region)) +geom_boxplot() + xlab('year') + ylab('Residuals values')
+
+ggplot(df_lm, aes(x= residuals, y = fitted, color = region)) +
+  geom_point() +
+  facet_wrap(~ year, scales = "free")+ 
+  xlab('Residuals') + ylab('Fitted values')
+
 ```
 
 
@@ -315,22 +327,43 @@ In a first model, we consider two levels of grouping: observations for the same 
 library(lme4)
 library(lmerTest)
 
-final_model <- lmer(Dvote ~  s1 + s2 + s3 + s4 + n1 + n4 + r3+ r4+ r5+ r6 +(s5|year:region), data = df_usa)
+final_model <- lmer(Dvote ~  s1 + s2 + s3 + s4 + n1 + n4 + r3+ r4+ r5+ r6 +(s5|year:region), data = df_lm)
 
 summary(final_model)
 coef(final_model) #to have the coefficients of fixed effects
 ranef(final_model) #to have the coefficients of random effects
 plot(final_model) #too see the residuals
-plot(df_usa$state[1:561], resid(final_model))
+
+
+anova(final_model)
+
 require("lattice")
 qqmath(final_model) #to have the qqplot of the residuals
 ``` 
 
 
 
-
 # Interpretation
-The random effect variables are significant at all levels of significance with the Satterthwaite's method. The coefficients associated with the last elections' results are positive which means that if democrat scored a good share of votes in the last elections, they are more likely to score a good share in the upcoming elections. 
+The random effect variables are significant at all levels of significance with the Satterthwaite's method as it can be seen in *Table 1*. 
+
+*Table 1 : anova of the fixed effects*
+
+| Variable | Sum Sq   | Mean Sq  | NumDF | DenDF  | F value  | Pr(>F)     |
+|----------|----------|----------|-------|--------|----------|------------|
+| s1       | 0.177346 | 0.177346 | 1     | 507.66 | 169.009  | < 2.2e-16  |
+| s2       | 0.082547 | 0.082547 | 1     | 513.63 | 78.6668  | < 2.2e-16  |
+| s3       | 0.047104 | 0.023552 | 2     | 490.62 | 22.4449  | 4.707e-10  |
+| s4       | 0.012284 | 0.006142 | 2     | 503.49 | 5.8534   | 0.003069   |
+| n1       | 0.147673 | 0.147673 | 1     | 41.21  | 140.7316 | 7.181e-15  |
+| n4       | 0.058874 | 0.058874 | 1     | 42.37  | 56.1063  | 2.762e-09  |
+| r3       | 0.07235  | 0.07235  | 1     | 489.08 | 68.9491  | 9.966e-16  |
+| r4       | 0.025637 | 0.025637 | 1     | 329.73 | 24.4319  | 1.228e-06  |
+| r5       | 0.006328 | 0.006328 | 1     | 227.27 | 6.0304   | 0.014812   |
+| r6       | 0.017214 | 0.017214 | 1     | 346.31 | 16.4052  | 6.316e-05  |
+
+
+
+The coefficients associated with the last elections' results are positive which means that if democrat scored a good share of votes in the last elections, they are more likely to score a good share in the upcoming elections. 
 Nationwide variables are also associated with positive coefficients meaning that when the polls are in favor of the Democratic candidate in September, and when the economic growth is good, people tend to vote more for the Democrats. The coefficient associated with the candidate being from the state is positive which also seems plausible since people could feel closer to him/her in the region and therefore favor him in the election.
 A strongly negative coefficient is unsurprisingly associated with the deep south indicator. A less stronger but still negative coefficient is also associated with the West in 1976 indicator. 
 
