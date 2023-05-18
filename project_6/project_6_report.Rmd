@@ -107,7 +107,7 @@ Moreover, since countries were not impacted at the same time by the pandemic, co
 
 # Data modification 
 ## Method 1 
-## Smoothing 
+### Smoothing 
 As a first approach of effectively smooth the data, I have considered two methods: the rolling mean with a 7-day window to address reporting issues during weekends, and the normal kernel smoothing technique using a 7-day window. Both methods yield valid and closely aligned results, but after careful consideration, I have decided to retain the series smoothed with the rolling mean approach.
 
 The primary advantage of rolling mean over kernel smoothing lies in its simplicity and computational efficiency. Rolling mean can be seen as a specific instance of kernel smoothing, where the function used is the uniform density. This means that it corresponds to calculating the average of a sequence of data points within a fixed window. The simplicity and interpretability of rolling mean make it easier to comprehend and compute compared to normal kernel smoothing.
@@ -176,7 +176,7 @@ for (country in countries){
 ```
 
 
-## Shifting the curves 
+### Shifting the curves 
 Previously, we applied smoothing techniques to the curves; however, they are currently not synchronized, requiring us to adjust their alignment. I have established a threshold based on the number of accumulated cases. Once a country surpasses this threshold, I redefine the time scale, ensuring that all curves start at that specific time. Consequently, the curves are shifted to commence together when they have reached a similar stage in the pandemic's progression. The outcomes of this alignment can be observed in *Figure 3*.
 
 ```{r, echo = FALSE, include = FALSE}
@@ -210,7 +210,7 @@ rm(data__)
 data_meth_1 %>% group_by(location) %>% ggplot(aes(x=time, y=roll_log_cases_per_million, color=location)) + geom_line()
 ``` 
 
-```{r, fig.align="center", fig.cap="Figure 3: Shifted and smoothed curves with method 1"}
+```{r, fig.align="center", fig.cap="Figure 3: Shifted and smoothed curves - method 1"}
 data_meth_1 %>% group_by(location) %>% ggplot(aes(x=time, y=roll_log_cases_per_million, color=location)) + geom_line() +ylab('Logarithm of the number of cases per million')
 ```
 
@@ -219,7 +219,7 @@ The alignment of the curves successfully ensures that they start at the same tim
 
 ## Method 2
 ### Shifting the curves 
-In this method, I exchange the order of my steps. First, I want to have my curves 'at the same time' but I don't want to delete some values on the right due to the limit I have defined at the 1st of November 2020. I am going to change the time scale to have all the time values represented in the interval [0,1] where 0 represents the beginning of the study (which in 'real' time differs for each country) and 1 the end of the study (fixed at the 1st of November 2020 which is the same for each country). 
+In this method, I exchange the order of my steps. First, I want to have my curves 'at the same time' but I don't want to delete some values on the right due to the limit I have defined at the 1st of November 2020. I change the time scale to have all the time values represented in the interval [0,1] where 0 represents the beginning of the study (which in 'real' time differs for each country) and 1 the end of the study (fixed at the 1st of November 2020 which is the same for each country). 
 
 ```{r, echo = FALSE, include = FALSE}
 countries <- unique(data_frame$location)
@@ -239,12 +239,12 @@ for (country in countries){
 i = 1
 data_meth_2 <- data_frame%>%filter(location == 'Albania') %>% filter(date >= starting_point[i]) %>% filter(date < starting_point[i] + length[i] )
 data_meth_2$time <- 1:length[i]
-#data_meth_2$time <- (data_meth_2$time - min(data_meth_2$time))/(max(data_meth_2$time) - min(data_meth_2$time)) 
+data_meth_2$time <- (data_meth_2$time - min(data_meth_2$time))/(max(data_meth_2$time) - min(data_meth_2$time)) 
 i = 2
 for (country in countries[2:length(countries)]){
   data__ <- data_frame%>%filter(location == country) %>% filter(date >= starting_point[i]) %>% filter(date < starting_point[i] + length[i])
   data__$time <- 1:length[i]
-  #data__$time <- (data__$time - min(data__$time))/(max(data__$time) - min(data__$time)) 
+  data__$time <- (data__$time - min(data__$time))/(max(data__$time) - min(data__$time)) 
   data_meth_2 <- rbind(data_meth_2, data__)
   i <- i+1
 }
@@ -252,43 +252,42 @@ for (country in countries[2:length(countries)]){
 rm(data__)
 ``` 
 
+```{r, fig.align="center", fig.cap="Figure 4: Shifted curves - method 2"}
+data_meth_2 %>% group_by(location) %>% ggplot(aes(x=time, y=roll_log_cases_per_million, color=location)) + geom_line() +ylab('Logarithm of the number of cases per million')
+
+``` 
 
 ### Smoothing
-I don't have the same amount of observations for each country and I have not yet smoothed my data so I here use the B-splines to do so in this section. After smoothing, I obtain *Figure 4*.
+I don't have the same amount of observations for each country and I have not yet smoothed my data so I use the B-splines to do so. I have almost 250 values for each country, so I decide to do evaluate my B-splines on 150 final values. After smoothing, I obtain *Figure 5*.
 
-```{r}
+
+```{r autre méthode, echo = FALSE, include = FALSE}
 library(fda)
 col = c('time', 'log_total_cases_per_million', 'location')
 data_pca <- data_meth_2[,col]
-#gg_miss_fct(x = data_pca, fct = location) #pas de données manquantes
-data_pca <- pivot_wider(data_pca, names_from = location, values_from = log_total_cases_per_million)
-#remove missing data if any
-data_pca <- na.omit(data_pca)
-#data_pca <- data_pca[,2:length(data_pca)]
 
-matrix_pca <- data.matrix(data_pca)
+data_smoothed <- list()
+z <- seq(0, 1, length = 150)
+for (i in 1:length(countries)){
+  df_country <- data_pca[data_pca$location == countries[i],]
+  nodes_per_week <- c(seq(0,1, by = 7/length(df_country$time)), 1)
+  B_base <- bsplineS(df_country$time, norder = 6, nodes_per_week)
+  eta_hat <- ginv(t(B_base)%*% B_base)%*%t(B_base)%*% df_country$log_total_cases_per_million
 
+  Bplot <-bsplineS(z, norder = 6, nodes_per_week)
+  data_smoothed[[i]] <- as.vector(Bplot %*% eta_hat)
+}
 
-my_nodes <- data_pca$time
-nodes_per_week <- c(my_nodes[1], seq(range(my_nodes)[1], range(my_nodes)[2], by = 7),
-                    my_nodes[length(my_nodes)])
-B_base <- bsplineS(my_nodes, norder = 6, nodes_per_week)
+data_smoothed <- data.frame(t(do.call(rbind, data_smoothed)))
+colnames(data_smoothed) <- countries
 
-eta_hat <- ginv(t(B_base)%*% B_base)%*%t(B_base)%*%matrix_pca
-
-nodes_evaluation = seq(range(my_nodes)[1], range(my_nodes)[2], by = 0.1)
-Bplot <-bsplineS(nodes_evaluation, norder = 6, nodes_per_week)
-
-data_smoothed <- Bplot %*% eta_hat
-
-```
+``` 
 
 
-```{r, fig.align="center", fig.cap="Figure 4: Shifted and smoothed curves with method 2"}
-#pivot_longer(data_smoothed, cols = 'Albania', names_to = 'location')
-to_plot <- data.frame(data_smoothed)
-to_plot <- to_plot%>%
-  pivot_longer(!time, names_to = "location", values_to = "total_cases_log_smoothed")
+
+```{r, fig.align="center", fig.cap="Figure 5: Shifted and smoothed curves - method 2"}
+to_plot <- data_smoothed %>% mutate( time = seq(1, length(data_smoothed[,1]), by = 1))
+to_plot <- to_plot%>% pivot_longer(!time, names_to = "location", values_to = "total_cases_log_smoothed")
 
 
 to_plot %>% group_by(location)%>% ggplot(aes(x = time, y = total_cases_log_smoothed, color = location)) + geom_line() + ylab('Smoothed logarithm of the total cases')
@@ -348,7 +347,6 @@ plot(Loadings[,4]*sign(sum(Loadings[,4])),type="l", main=paste0("4th PC (",round
 ## With the 2nd method 
 I represent in *Figure 6* the PCA obtained with the second method. 
 ```{r, fig.align="center", fig.cap="Figure 6: PCA curves with method 2"}
-
 col <- countries
 data_smoothed <- data_smoothed[,col]
 
@@ -384,16 +382,16 @@ plot(Loadings[,4]*sign(sum(Loadings[,4])),type="l", main=paste0("4th PC (",round
 The results of the principal component analysis (PCA) with method 1 reveal that the first principal component accounts for 81% of the total variance. This component exhibits an initial steep upward trend, capturing the first peak observed in the curves. Towards the end, it gradually decreases until it reaches zero. The second principal component explains 14% of the variance and shows an increasing trend following the decline of the first principal component. Moving on, the third and fourth principal components display a peak at the beginning, followed by a decrease. Together, they account for 4% of the explained variance. In total, the first four principal components explain 99% of the total variance observed in the data.
 
 
-The second principal component analysis obtained with method 2 reveals that the first principal component also accounts for 80% of the total variance and is really close to what I had obtained with method 1. The second principal component analysis accounts now for 14% of the variance, whereas the third and fourth account for 4%. In total the first four PC account for 98% of the variance.
+The second principal component analysis obtained with method 2 reveals that the first principal component also accounts for 79% of the total variance and is really close to what I had obtained with method 1. The second principal component analysis accounts now for 14% of the variance, whereas the third and fourth account for 6%. In total the first four PC account for 99% of the variance.
 
 
 
 # Discussion
 In this project, our main focus was to analyze and explain the amplitude of data representing the logarithm of cumulative COVID-19 cases in European countries within a specific time period. Given the spread of the pandemic, countries experienced variations in the timing of case numbers and deaths, resulting in lagged evolutions.
 
-To address this time shift, we adjusted the curves by synchronizing them, enabling us to conduct a more accurate principal component analysis (PCA). By considering the curves' alignment, with method 1, we were able to obtain the four leading principal components, which accounted for almost 100% of the total variance. Notably, the first principal component explained almost 81% of the variance and effectively captured the initial peak experienced by the countries. However, it is important to acknowledge that factors such as countries' demographics and political measures can significantly influence the pandemic's evolution. This complexity limits the effectiveness of our simple curve-shifting method, which assumes linear time progression.
+To address this time shift, we adjusted the curves by synchronizing them, enabling us to conduct a more accurate principal component analysis (PCA). By considering the curves' alignment, with method 1, we were able to obtain the four leading principal components, which accounted for 99% of the total variance. Notably, the first principal component explained 81% of the variance and effectively captured the initial peak experienced by the countries. However, it is important to acknowledge that factors such as countries' demographics and political measures can significantly influence the pandemic's evolution. This complexity limits the effectiveness of our simple curve-shifting method, which assumes linear time progression.
 
-With the second method which also addresses the issue of the time shift, the PCA gives similar results. Indeed, the time window that was chosen corresponds to the 1st peak of the pandemic, thus, countries had close dynamical evolutions. Then, countries implemented different measures that changed the local behavior of the pandemic inside the country and which created different and lagged evolutions. 
+With the second method which also addresses the issue of the time shift, the PCA gives similar results with close explanatory power of the principal components. Indeed, the time window that was chosen corresponds to the 1st peak of the pandemic, thus, countries had close dynamical evolutions. Then, countries implemented different measures that changed the local behavior of the pandemic inside the country and which created different and lagged evolutions. 
 
 The good results obtained by our PCA without doing proper registration with monotonic function are mostly explained by the fact that we studied a process relatively common to all countries. 
 
