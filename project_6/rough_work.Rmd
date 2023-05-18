@@ -561,3 +561,191 @@ data_frame %>% filter(date <=as.Date('01-07-2021', format = '%d-%m-%Y')) %>% ggp
 ADD COMMENT
 
 
+
+
+
+
+```{r, include = FALSE, echo = FALSE }
+test <- scale(data_$gdp_per_capita)
+test <- na.omit(test)
+k <- kmeans(test, centers = 2)
+data_$gdp_cluster <- as.factor(k$cluster)
+#gg_miss_fct(x = data_, fct = location)
+
+data_ %>% group_by(gdp_cluster) %>% ggplot(aes(x=time, y=roll_log_cases_per_million, color=gdp_cluster)) + geom_line() + xlab('date') + ylab('Log of the cumulated cases(per million)')
+
+data_1 <- data_ %>% filter(gdp_cluster == '1')
+data_2 <- data_ %>% filter(gdp_cluster == '2')
+
+g1 <- data_1 %>% group_by(location) %>% ggplot(aes(x=time, y=roll_log_cases_per_million, color=location)) + geom_line() + xlab('date') + ylab('Log of the cumulated cases(per million)') + theme(legend.position = "none")
+
+g2 <- data_2%>% group_by(location) %>% ggplot(aes(x=time, y=roll_log_cases_per_million, color=location)) + geom_line() + xlab('date') + ylab('Log of the cumulated cases(per million)') + theme(legend.position = "none")
+
+grid.arrange(g1, g2)
+
+
+data_$life_exp_cluster <- as.factor((kmeans(scale(data_$life_expectancy), centers = 2))$cluster)
+
+data_1 <- data_ %>% filter(life_exp_cluster == '1')
+data_2 <- data_ %>% filter(life_exp_cluster == '2')
+
+g1 <- data_1 %>% group_by(location) %>% ggplot(aes(x=time, y=roll_log_cases_per_million, color=location)) + geom_line() + xlab('date') + ylab('Log of the cumulated cases(per million)') + theme(legend.position = "none")
+
+g2 <- data_2%>% group_by(location) %>% ggplot(aes(x=time, y=roll_log_cases_per_million, color=location)) + geom_line() + xlab('date') + ylab('Log of the cumulated cases(per million)') + theme(legend.position = "none")
+
+grid.arrange(g1, g2)
+
+
+
+
+
+#perform pca on each
+
+col = c('time', 'roll_log_cases_per_million', 'location')
+data_pca <- data_1[,col]
+data_pca <- pivot_wider(data_pca, names_from = location, values_from = roll_log_cases_per_million)
+
+#remove missing data if any
+data_pca <- na.omit(data_pca)
+data_pca <- data_pca[,2:length(data_pca)]
+
+matrix_pca <- data.matrix(data_pca)
+
+X = t(matrix_pca)
+
+mu <- colMeans(X)
+X <- sweep(X,2,mu)
+
+SVD <- svd(X)
+Scores <- SVD$u %*% diag(SVD$d)
+Loadings <- SVD$v
+FVE <- SVD$d^2/sum(SVD$d^2)
+
+par(mfrow = c(3,2))
+
+plot(X[1,]+mu,type="l", ylim=range(X+mu), main="Data and the mean", ylab = '')
+for(n in 1:dim(X)[1]) points(X[n,]+mu,type="l")
+  points(mu,col=2,lwd=2,type="l")
+
+plot(Scores[1,]*sign(sum(Loadings[,1])), Scores[2,]*sign(sum(Loadings[,2])), main="1st vs 2nd PC scores", ylab = '')
+
+
+plot(Loadings[,1]*sign(sum(Loadings[,1])),type="l", main=paste0("1st PC (",round(100*FVE[1])," % of var)"), ylab = '')
+plot(Loadings[,2]*sign(sum(Loadings[,2])),type="l", main=paste0("2nd PC (",round(100*FVE[2])," % of var)"), ylab = '')
+plot(Loadings[,3]*sign(sum(Loadings[,3])),type="l", main=paste0("3rd PC (",round(100*FVE[3])," % of var)"), ylab = '')
+plot(Loadings[,4]*sign(sum(Loadings[,4])),type="l", main=paste0("4th PC (",round(100*FVE[4])," % of var)"), ylab = '')
+
+
+col = c('time', 'roll_log_cases_per_million', 'location')
+data_pca <- data_2[,col]
+data_pca <- pivot_wider(data_pca, names_from = location, values_from = roll_log_cases_per_million)
+
+#remove missing data if any
+data_pca <- na.omit(data_pca)
+data_pca <- data_pca[,2:length(data_pca)]
+
+matrix_pca <- data.matrix(data_pca)
+
+X = t(matrix_pca)
+
+mu <- colMeans(X)
+X <- sweep(X,2,mu)
+
+SVD <- svd(X)
+Scores <- SVD$u %*% diag(SVD$d)
+Loadings <- SVD$v
+FVE <- SVD$d^2/sum(SVD$d^2)
+
+par(mfrow = c(3,2))
+
+plot(X[1,]+mu,type="l", ylim=range(X+mu), main="Data and the mean", ylab = '')
+for(n in 1:dim(X)[1]) points(X[n,]+mu,type="l")
+  points(mu,col=2,lwd=2,type="l")
+
+plot(Scores[1,]*sign(sum(Loadings[,1])), Scores[2,]*sign(sum(Loadings[,2])), main="1st vs 2nd PC scores", ylab = '')
+
+
+plot(Loadings[,1]*sign(sum(Loadings[,1])),type="l", main=paste0("1st PC (",round(100*FVE[1])," % of var)"), ylab = '')
+plot(Loadings[,2]*sign(sum(Loadings[,2])),type="l", main=paste0("2nd PC (",round(100*FVE[2])," % of var)"), ylab = '')
+plot(Loadings[,3]*sign(sum(Loadings[,3])),type="l", main=paste0("3rd PC (",round(100*FVE[3])," % of var)"), ylab = '')
+plot(Loadings[,4]*sign(sum(Loadings[,4])),type="l", main=paste0("4th PC (",round(100*FVE[4])," % of var)"), ylab = '')
+
+``` 
+
+
+```{r}
+col = c('time', 'roll_log_cases_per_million', 'location')
+data_pca_1 <- data_1[,col]
+data_pca_1 <- pivot_wider(data_pca_1, names_from = location, values_from = roll_log_cases_per_million)
+
+#remove missing data if any
+data_pca_1 <- na.omit(data_pca)
+data_pca_1 <- data_pca_1[,2:length(data_pca_1)]
+
+matrix_pca_1 <- data.matrix(data_pca_1)
+
+X_1 = t(matrix_pca_1)
+
+mu_1 <- colMeans(X_1)
+X_1 <- sweep(X_1,2,mu_1)
+
+SVD_1 <- svd(X_1)
+Scores_1 <- SVD_1$u %*% diag(SVD_1$d)
+Loadings_1 <- SVD_1$v
+FVE_1 <- SVD_1$d^2/sum(SVD_1$d^2)
+
+data_pca_2 <- data_2[,col]
+data_pca_2 <- pivot_wider(data_pca_2, names_from = location, values_from = roll_log_cases_per_million)
+
+#remove missing data if any
+data_pca_2 <- na.omit(data_pca_2)
+data_pca_2 <- data_pca_2[,2:length(data_pca_2)]
+
+matrix_pca_2 <- data.matrix(data_pca_2)
+
+X = t(matrix_pca_2)
+
+mu <- colMeans(X)
+X <- sweep(X,2,mu)
+
+SVD <- svd(X)
+Scores <- SVD$u %*% diag(SVD$d)
+Loadings <- SVD$v
+FVE <- SVD$d^2/sum(SVD$d^2)
+
+par(mfrow = c(3,2))
+
+plot(X_1[1,]+mu,type="l", ylim=range(X_1+mu), main="Data and the mean, 1st cluster", ylab = '')
+for(n in 1:dim(X_1)[1]) points(X_1[n,]+mu,type="l")
+  points(mu,col=2,lwd=2,type="l")
+
+plot(X[1,]+mu,type="l", ylim=range(X+mu), main="Data and the mean, 2nd cluster", ylab = '')
+for(n in 1:dim(X)[1]) points(X[n,]+mu,type="l")
+  points(mu,col=2,lwd=2,type="l")
+
+plot(Loadings[,1]*sign(sum(Loadings[,1])),type="l", main=paste0("1st PC"), ylab = '')
+lines(Loadings_1[,1]*sign(sum(Loadings_1[,1])),type="l", main=paste0("1st PC "), ylab = '', col = 'blue')
+
+plot(Loadings[,2]*sign(sum(Loadings[,2])),type="l", main=paste0("2nd PC "), ylab = '')
+lines(Loadings_1[,2]*sign(sum(Loadings_1[,2])),type="l", main=paste0("2nd PC "), ylab = '', col = 'blue')
+
+
+plot(Loadings[,3]*sign(sum(Loadings[,3])),type="l", main=paste0("3rd PC "), ylab = '')
+lines(Loadings_1[,3]*sign(sum(Loadings_1[,3])),type="l", main=paste0("3rd PC "), ylab = '', col = 'blue')
+
+
+plot(Loadings[,4]*sign(sum(Loadings[,4])),type="l", main=paste0("4th PC "), ylab = '')
+lines(Loadings_1[,4]*sign(sum(Loadings_1[,4])),type="l", main=paste0("4th PC "), ylab = '', col = 'blue')
+
+
+round(100*FVE[1])
+round(100*FVE_1[1])
+round(100*FVE[2])
+round(100*FVE_1[2])
+round(100*FVE[3])
+round(100*FVE_1[3])
+round(100*FVE[4])
+round(100*FVE_1[4])
+
+```
+
