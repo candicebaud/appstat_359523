@@ -1565,17 +1565,17 @@ political issues.</p>
 <h2><span class="header-section-number">3.1</span> Model building</h2>
 <p>The initial model we developed included all variables from the
 dataset, but the results showed that some variables had NA coefficients
-due to the presence of linear relations in the design matrix. To improve
-the model, we conducted variable selection based on plausibility. After
-careful consideration, we found that variables n1, n2, n3, n4, and s9
-were not useful in our analysis due to their correlation with the year
-variable, and the fact that they provided unique values for each state
-and region when the year was fixed. Additionally, we removed the
-variable that corresponded to the number of electors in a given state
-and year since our outcome variable was the Democratic party’s share of
-the vote. We also discarded the ‘measure of state ideology’ and
-‘ideological compatibility with candidates’ due to their complexity and
-difficulty to interpret.</p>
+due to the presence of collinearity relations in the design matrix. To
+improve the model, we conducted variable selection based on
+plausibility. After careful consideration, we found that variables n1,
+n2, n3, n4, and s9 were not useful in our analysis due to their
+correlation with the year variable, and the fact that they provided
+unique values for each state and region when the year was fixed.
+Additionally, we removed the variable that corresponded to the number of
+electors in a given state and year since our outcome variable was the
+Democratic party’s share of the vote. We also discarded the ‘measure of
+state ideology’ and ‘ideological compatibility with candidates’ due to
+their complexity to interpret.</p>
 <p>For our initial regression, we did not include the ‘region’ variable
 but did include the ‘state’ variable.</p>
 <p>The obtained output is satisfactory, as most of the variables are
@@ -1637,8 +1637,7 @@ Figure 3: Residuals diagnostics grouped by state
 <p>We build in this section a mixed model to be able to account for the
 within-group correlation structure of the data by including random
 effects for each level of nesting.</p>
-<p>We choose to include in the model ‘fixed’ effects, that is to say
-:</p>
+<p>We choose to include in the model ‘fixed’ effects as follows :</p>
 <ul>
 <li>all the nationwide variables since they are not depending on the
 region nor the year</li>
