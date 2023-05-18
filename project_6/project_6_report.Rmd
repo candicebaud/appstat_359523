@@ -86,8 +86,8 @@ One can visualize the evolution of the logarithm of the cumulated cases (per mil
 
 ```{r, fig.align="center", fig.cap="Figure 1: Number of cases accross the different countries"}
 df <- df %>% mutate(
-  log_total_cases = log(total_cases),
-  log_total_cases_per_million = log(total_cases_per_million)
+  log_total_cases = log10(total_cases),
+  log_total_cases_per_million = log10(total_cases_per_million)
 )
 
 df%>% ggplot(aes(x=date, y=log_total_cases_per_million, color=location)) + geom_line() + xlab('date') + ylab('Log of the cumulated cases(per million)')
@@ -381,17 +381,17 @@ plot(Loadings[,4]*sign(sum(Loadings[,4])),type="l", main=paste0("4th PC (",round
 
 
 # Interpretation 
-The results of the principal component analysis (PCA) with method 1 reveal that the first principal component accounts for 77% of the total variance. This component exhibits an initial steep upward trend, capturing the first peak observed in the curves. Towards the end, it gradually decreases until it reaches zero. The second principal component explains 14% of the variance and shows an increasing trend following the decline of the first principal component. Moving on, the third and fourth principal components display a peak at the beginning, followed by a decrease. Together, they account for 9% of the explained variance. In total, the first four principal components explain 100% of the total variance observed in the data.
+The results of the principal component analysis (PCA) with method 1 reveal that the first principal component accounts for 81% of the total variance. This component exhibits an initial steep upward trend, capturing the first peak observed in the curves. Towards the end, it gradually decreases until it reaches zero. The second principal component explains 14% of the variance and shows an increasing trend following the decline of the first principal component. Moving on, the third and fourth principal components display a peak at the beginning, followed by a decrease. Together, they account for 4% of the explained variance. In total, the first four principal components explain 99% of the total variance observed in the data.
 
 
-The second principal component analysis obtained with method 2 reveals that the first principal component also accounts for 77% of the total variance and is really close to what I had obtained with method 1. The second principal component analysis accounts now for 15% of the variance, whereas the third and fourth account for 7%. In total the first four PC account for 99% of the variance.
+The second principal component analysis obtained with method 2 reveals that the first principal component also accounts for 80% of the total variance and is really close to what I had obtained with method 1. The second principal component analysis accounts now for 14% of the variance, whereas the third and fourth account for 4%. In total the first four PC account for 98% of the variance.
 
 
 
 # Discussion
 In this project, our main focus was to analyze and explain the amplitude of data representing the logarithm of cumulative COVID-19 cases in European countries within a specific time period. Given the spread of the pandemic, countries experienced variations in the timing of case numbers and deaths, resulting in lagged evolutions.
 
-To address this time shift, we adjusted the curves by synchronizing them, enabling us to conduct a more accurate principal component analysis (PCA). By considering the curves' alignment, with method 1, we were able to obtain the four leading principal components, which accounted for 100% of the total variance. Notably, the first principal component explained 77% of the variance and effectively captured the initial peak experienced by the countries. However, it is important to acknowledge that factors such as countries' demographics and political measures can significantly influence the pandemic's evolution. This complexity limits the effectiveness of our simple curve-shifting method, which assumes linear time progression.
+To address this time shift, we adjusted the curves by synchronizing them, enabling us to conduct a more accurate principal component analysis (PCA). By considering the curves' alignment, with method 1, we were able to obtain the four leading principal components, which accounted for almost 100% of the total variance. Notably, the first principal component explained almost 81% of the variance and effectively captured the initial peak experienced by the countries. However, it is important to acknowledge that factors such as countries' demographics and political measures can significantly influence the pandemic's evolution. This complexity limits the effectiveness of our simple curve-shifting method, which assumes linear time progression.
 
 With the second method which also addresses the issue of the time shift, the PCA gives similar results. Indeed, the time window that was chosen corresponds to the 1st peak of the pandemic, thus, countries had close dynamical evolutions. Then, countries implemented different measures that changed the local behavior of the pandemic inside the country and which created different and lagged evolutions. 
 
