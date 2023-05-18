@@ -283,14 +283,17 @@ data_smoothed <- Bplot %*% eta_hat
 
 ```
 
-PLOT A REFAIRE
+
 ```{r, fig.align="center", fig.cap="Figure 4: Shifted and smoothed curves with method 2"}
 #pivot_longer(data_smoothed, cols = 'Albania', names_to = 'location')
+to_plot <- data.frame(data_smoothed)
+to_plot <- to_plot%>%
+  pivot_longer(!time, names_to = "location", values_to = "total_cases_log_smoothed")
 
-plot(nodes_evaluation, data_smoothed[,2], type = 'l')
-for (n in 1:dim(data_smoothed)[2]){
-  lines(nodes_evaluation, data_smoothed[,n])
-}
+
+to_plot %>% group_by(location)%>% ggplot(aes(x = time, y = total_cases_log_smoothed, color = location)) + geom_line() + ylab('Smoothed logarithm of the total cases')
+
+rm(to_plot)
 ```
 
 Another intriguing approach for shifting the curves would have been by following Marc Lavielle's procedure [1]. In his article, Lavielle utilizes the logarithmic derivative (u'/u) of the number of daily cases to identify critical breaking points in the curve. These breaking points play a significant role in determining the pandemic's progression towards a peak or a decline in the number of cases. By selecting and aligning the breaking points, it becomes possible to shift the curves together, ensuring that the breaking points coincide. 
@@ -303,7 +306,7 @@ Now that the countries are synchronized in time, I do PCA on the smoothed logari
 col = c('time', 'roll_log_cases_per_million', 'location')
 data_pca <- data_meth_1[,col]
 data_pca <- pivot_wider(data_pca, names_from = location, values_from = roll_log_cases_per_million)
-#gg_miss_fct(x = data_pca, fct = time) 
+#gg_miss_fct(x = data_pca, fct = time) check missing data
 
 #remove missing data if any
 data_pca <- na.omit(data_pca)
@@ -343,6 +346,7 @@ plot(Loadings[,4]*sign(sum(Loadings[,4])),type="l", main=paste0("4th PC (",round
 ``` 
 
 ## With the 2nd method 
+I represent in *Figure 6* the PCA obtained with the second method. 
 ```{r, fig.align="center", fig.cap="Figure 6: PCA curves with method 2"}
 
 col <- countries
