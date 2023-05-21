@@ -62,9 +62,9 @@ df <- df %>% mutate(date = as.Date(date, format = "%Y-%m-%d"))
 ```
 
 # Introduction
-The covid-19 pandemic which started in December 2019 in Wuhan had a significant impact on the world, with over 160 million confirmed cases and 3.3 million deaths worldwide as of May 2023. The disease has been studied extensively in various fields, including epidemiology, medicine, and public health, and many models have been proposed. Some were based on theoretical models (SIR, SEIR, SEIRD...) and fitted to the data by estimating the models parameters. Another way of modelling the problem is to base the analysis on the data itself and not a general model, which has been proposed by Marc Lavielle [1], by detecting changing points in the derivative of the number of hospitalized patients, and then fitting polynomial regressions. In this project, we also want to build a model out of the data and will use pca, which can help identify important patterns of variation in amplitude in the data.
+The covid-19 pandemic which started in December 2019 in Wuhan had a significant impact on the world, with over 160 million confirmed cases and 3.3 million deaths worldwide as of May 2023. The disease has been studied extensively in various fields, including epidemiology, medicine, and public health, and many models have been proposed. Some were based on theoretical models (SIR, SEIR, SEIRD...) and fitted to the data by estimating the models parameters. Another way of modelling the problem is to base the analysis on the data itself and not a general model, which has been proposed by Marc Lavielle [1], by detecting changing points in the derivative of the number of hospitalized patients, and then fitting polynomial regressions. In this project, we want to explore the pandemic's amplitude variation with pca. To this end, we must consider the fact that countries were not impacted at the same time by the virus and thus synchronize the countries in a different time scale.  
 
-We will begin by introducing the data collection and its characteristics and then smooth it. Next, we will perform functional pca on the smoothed data using svd(). Finally, we will interpret the results.
+We will begin by introducing the data collection and its characteristics and then ways to smooth it and synchronize curves. Next, we will perform functional pca on the smoothed data. Finally, we will interpret the results.
 
 # Data collection and characteristics 
 In this project, the data used was collected from the website *OurWorldInData* [2], which compiles data on COVID-19 from the World Health Organization. I extracted the values from the original dataset corresponding to European countries with available COVID-19 data. The final dataset includes two categories of indicators: COVID-19 indicators and country characteristics. The COVID-19 indicators include the country, date, cumulative number of cases per million, and stringency index. The country characteristics include population, GDP per capita, and various health indicators, such as diabetes prevalence and the number of cardiovascular deaths. The full list of indicators, separated by category, is provided above for reference.
@@ -107,6 +107,8 @@ Moreover, since countries were not impacted at the same time by the pandemic, co
 
 # Data modification 
 ## Method 1 
+One approach I consider is to first smooth the data and then align the curves by setting a common starting point based on a specific number of cases. Each country will have a fixed number of observations, but they will not end at the same time since they don't start at the same time.
+
 ### Smoothing 
 As a first approach of effectively smooth the data, I have considered two methods: the rolling mean with a 7-day window to address reporting issues during weekends, and the normal kernel smoothing technique using a 7-day window. Both methods yield valid and closely aligned results, but after careful consideration, I have decided to retain the series smoothed with the rolling mean approach.
 
@@ -218,8 +220,10 @@ The alignment of the curves successfully ensures that they start at the same tim
 
 
 ## Method 2
+The second method I consider is to first synchronize my curves and then smooth it with B splines.
+
 ### Shifting the curves 
-In this method, I exchange the order of my steps. First, I want to have my curves 'at the same time' but I don't want to delete some values on the right due to the limit I have defined at the 1st of November 2020. I change the time scale to have all the time values represented in the interval [0,1] where 0 represents the beginning of the study (which in 'real' time differs for each country) and 1 the end of the study (fixed at the 1st of November 2020 which is the same for each country). 
+To ensure consistency among the curves, I aim to align them while preserving all data points up until the specified limit of November 1, 2020. To achieve this, I normalize the time scale, representing the entire study period as the interval [0,1]. Here, 0 corresponds to the individual starting points (which vary across countries), and 1 represents the fixed end point of November 1, 2020, common to all countries.
 
 ```{r, echo = FALSE, include = FALSE}
 countries <- unique(data_frame$location)
@@ -295,7 +299,7 @@ to_plot %>% group_by(location)%>% ggplot(aes(x = time, y = total_cases_log_smoot
 rm(to_plot)
 ```
 
-Another intriguing approach for shifting the curves would have been by following Marc Lavielle's procedure [1]. In his article, Lavielle utilizes the logarithmic derivative (u'/u) of the number of daily cases to identify critical breaking points in the curve. These breaking points play a significant role in determining the pandemic's progression towards a peak or a decline in the number of cases. By selecting and aligning the breaking points, it becomes possible to shift the curves together, ensuring that the breaking points coincide. 
+Another intriguing approach for shifting the curves would have been by following Marc Lavielle's procedure [1]. In his article, Lavielle utilizes the logarithmic derivative (u'/u) of the number of daily cases to identify critical breaking points in the curve. These breaking points play a significant role in determining the pandemic's progression towards a peak or a decline in the number of cases. By selecting and aligning the breaking points, it becomes possible to shift the curves together, ensuring that the breaking points coincide. However, this method would probably fail in this case because of the fact that governments influenced the pandemic's evolution in different ways. Indeed, the lockdowns were not of the same intensity in all the countries, and even some Nordic countries did not choose to confine their population.
 
 # PCA
 ## With the 1st method
