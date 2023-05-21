@@ -1580,10 +1580,10 @@ whether the team is playing home or away, an indicator of the COVID-19
 period having levels corresponding to before,during and after. Finally,
 we include a cross term between the indicator of playing home or away
 and the indicator of the COVID-19 period. In the first model that I had
-built, I had also put the referee variable, because some referees could
-be stricter than others. But, the associated coefficients are not
-significant, thus, I discarded this variable in the final model
-previously described.</p>
+built, I had also put the referee variable, to account for the fact that
+some referees can be stricter than others. But, the associated
+coefficients are not significant, thus, I discarded this variable in the
+final model previously described.</p>
 <p>The poisson model can be written with the following equation</p>
 <p><span class="math display">\[log(\mathbb{E}(N_{goals})) = \beta^{T}X
 + \epsilon\]</span></p>
@@ -1847,9 +1847,10 @@ generally similar although slightly smaller. Possible explanations for
 this slight decrease include teams becoming accustomed to playing in
 empty stadiums or changes in fan behavior before and after the
 pandemic.</p>
-<p>The stability analyse shows that the model is not that robust since
-the coefficients are not significant in this one. Moreover, when looking
-at the residuals, as previously stated, some influential outliers were
+<p>The stability analysis shows that the model is not that robust since
+the coefficients are not significant when only taking into account the
+teams that are not promoted nor relegated. Moreover, when looking at the
+residuals, as previously stated, some influential outliers were
 identified which can possibly slightly bias the models we built. As a
 deepening of this work, one could therefore refit the models without
 those outliers.</p>
