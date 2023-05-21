@@ -292,7 +292,7 @@ plot(model_without_region, which =c(1,2))
 ```
 
 However, when looking at the residuals grouped by region within year in *Figure 3*, it appears clearly that there is grouping between regions within year. This is due to the fact that the linear model is not appropriate for this type of data. Indeed, there is clustering (or nesting) in the data, ie, there is a hierarchical structure in the data where individual observations are nested within higher-level units. There is a year effect as well as a region effect for each year. The linear model that was used here does not account for the clustering in the data, which leads to biased estimates and incorrect model. We build in the next section a mixed model that allows observations from the same year to be correlated and observations within the same year and the same region to be correlated even further. 
-```{r, fig.align="center", fig.cap="Figure 3: Residuals diagnostics grouped by state"}
+```{r, fig.align="center", fig.cap="Figure 3: Residuals diagnostics grouped by state - linear model"}
 #plot(df_lm$state, resid(model_without_region))
 
 df_lm$residuals <- resid(model_without_region)
@@ -300,8 +300,8 @@ df_lm$fitted <- model_without_region$fitted.values
 
 #ggplot(df_lm, aes(x = as.factor(year), y = residuals, color = region)) +geom_boxplot() + xlab('year') + ylab('Residuals values')
 
-ggplot(df_lm, aes(x= residuals, y = fitted, color = region)) +
-  geom_point() +
+ggplot(df_lm, aes(x= fitted , y = residuals, color = region)) +
+  geom_boxplot() +
   facet_wrap(~ year, scales = "free")+ 
   xlab('Residuals') + ylab('Fitted values')
 
@@ -328,6 +328,7 @@ library(lme4)
 library(lmerTest)
 
 final_model <- lmer(Dvote ~  s1 + s2 + s3 + s4 + n1 + n4 + r3+ r4+ r5+ r6 +(s5|year:region), data = df_lm)
+
 
 summary(final_model)
 coef(final_model) #to have the coefficients of fixed effects
@@ -370,6 +371,21 @@ A strongly negative coefficient is unsurprisingly associated with the deep south
 Since we clustered in region within the states, the intercept varies across regions within years. For example, the Northeast region, in which belongs the state of New-York has an intercept estimated in average at 0.21 but in 1956, this intercept dropped at 0.16, when President Eisenhower was elected. One can see in the map that the Northeast region is mostly democrat through the years, but not in 1956 where almost each state voted for the Republican.
 
 Finally, we allowed for the slope of the Democratic majority in the legislature to vary also in regions within states, and one can observe very different coefficients associated with the different years and regions.
+
+Finally, *Figure 4* displays the residuals grouped by state for each year. One can see that there is no more grouping between regions within year since we build a model taking into account the hierarchical structure of the data. Thus, the final model we keep is the mixed model. 
+
+```{r, fig.align="center", fig.cap="Figure 4: Residuals diagnostics grouped by state - mixed model"}
+df_lm$residuals_2 <- resid(final_model)
+df_lm$fitted_2 <- fitted(final_model)
+
+
+ggplot(df_lm, aes(x= fitted_2, y = residuals_2, color = region)) +
+  geom_boxplot() +
+  facet_wrap(~ year, scales = "free")+ 
+  xlab('Residuals') + ylab('Fitted values')
+
+
+```
 
 
 # Discussion
